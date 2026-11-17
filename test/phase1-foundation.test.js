@@ -1,14 +1,21 @@
 // Phase 1 – CAP foundation: data model, internal tool service, session ownership, audit.
 // Run: npm test
 import cds from '@sap/cds'
-import { describe, it } from 'node:test'
+import { describe, it, before } from 'node:test'
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { installC4CMock, addEmployee } from './mocks/c4c-mock.js'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const { GET } = cds.test(root)
 const { SELECT } = cds.ql
+
+before(() => {
+  installC4CMock()
+  addEmployee({ firstName: 'Alice', lastName: 'Sales', email: 'alice.sales@example.com' })
+  addEmployee({ firstName: 'Carol', lastName: 'Sales', email: 'carol.sales@example.com' })
+})
 
 const user = (id, roles, email) => new cds.User({ id, roles, attr: { email } })
 const alice = user('alice', ['VisitDocumenter'], 'alice.sales@example.com')
@@ -72,6 +79,7 @@ describe('Phase 1 – sessions', () => {
     const s = await SELECT.one.from(VoiceSessions).where({ ID: sessionId })
     assert.equal(s.userId, 'alice')
     assert.equal(s.userEmail, 'alice.sales@example.com')
+    assert.ok(s.c4cEmployeeUUID, 'C4C employee UUID of the user is stored')
     assert.equal(s.status, 'ACTIVE')
     const days = (new Date(s.expiresAt) - Date.now()) / 86400000
     assert.ok(days > 6.9 && days <= 7, `expiresAt should be ~7 days ahead, is ${days}`)
@@ -104,7 +112,7 @@ describe('Phase 1 – placeholders are explicit', () => {
   it('tools of later phases fail with 501 instead of pretending to work', async () => {
     const res = await call(alice, 'startSession', { timeZone: 'Europe/Berlin' })
     const { sessionId } = JSON.parse(res.data)
-    await rejects(call(alice, 'findVisit', { sessionId }), 501, 'NOT_IMPLEMENTED: findVisit')
+    await rejects(call(alice, 'addTaskDraft', { sessionId }), 501, 'NOT_IMPLEMENTED: addTaskDraft')
     await rejects(call(alice, 'confirmCommit', { sessionId, previewHash: 'x' }), 501, 'NOT_IMPLEMENTED: confirmCommit')
   })
 })
