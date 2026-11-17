@@ -4,7 +4,9 @@
 //   1. connect      – WebSocket session via @sap-ai-sdk/openai/realtime (deployment resolved by model name)
 //   2. tool-call    – model calls a function tool, receives the result, answers in text
 //   3. audio-out    – model answers with audio (PCM16 24 kHz); latency to first audio chunk; WAV written to ./out
-//   4. transcribe   – (optional) generated audio is fed back as user input; input transcription is returned
+//   4. transcribe   – (optional) generated audio is fed back as user input; built-in input transcription,
+//                     one attempt per model in TRANSCRIBE_MODELS
+//   4b. oob-transcribe – (optional) gpt-realtime itself transcribes the audio in an out-of-band response
 //   5. server-vad   – (optional) server-side voice activity detection fires speech_started / speech_stopped
 //
 // Credentials: environment variable AICORE_SERVICE_KEY (the JSON of an SAP AI Core service key).
@@ -16,7 +18,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const MODEL = process.env.REALTIME_MODEL || 'gpt-realtime'
-const TRANSCRIBE_MODEL = process.env.TRANSCRIBE_MODEL || 'gpt-4o-mini-transcribe'
+const TRANSCRIBE_MODELS = (process.env.TRANSCRIBE_MODELS || 'gpt-4o-mini-transcribe,gpt-4o-transcribe,whisper-1')
+  .split(',').map(s => s.trim()).filter(Boolean)
 const STEP_TIMEOUT_MS = Number(process.env.STEP_TIMEOUT_MS || 30000)
 const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), 'out')
 const SAMPLE_RATE = 24000
@@ -190,24 +193,61 @@ async function main () {
     record('audio-out', false, err.message)
   }
 
-  // 4. transcribe (optional) --------------------------------------------------------------------
+  // 4. transcribe (optional) – built-in input transcription, one attempt per model ---------------
+  for (const model of TRANSCRIBE_MODELS) {
+    const step = `transcribe:${model}`
+    if (!audio.length) { record(step, false, 'skipped – no audio from step 3', true); continue }
+    try {
+      await updateSession(client, bus, {
+        output_modalities: ['text'],
+        audio: { input: { format: { type: 'audio/pcm', rate: SAMPLE_RATE }, transcription: { model }, turn_detection: null } }
+      })
+      appendAudio(client, audio)
+      client.send({ type: 'input_audio_buffer.commit' })
+      const ev = await bus.waitFor(`input transcription (${model})`, (t) =>
+        t === 'conversation.item.input_audio_transcription.completed' || t === 'conversation.item.input_audio_transcription.failed')
+      if (ev.type === 'conversation.item.input_audio_transcription.failed' || ev.error) {
+        throw new Error(`transcription failed: ${ev.error?.code ?? ''} ${ev.error?.message ?? JSON.stringify(ev)}`)
+      }
+      record(step, true, `"${(ev.transcript ?? '').trim().slice(0, 120)}"`, true)
+    } catch (err) {
+      record(step, false, err.message, true)
+    }
+  }
+
+  // 4b. oob-transcribe (optional) – gpt-realtime itself transcribes a committed audio item -------
+  //     in an out-of-band response (conversation: 'none'), without a separate transcription model.
   if (audio.length) {
     try {
       await updateSession(client, bus, {
         output_modalities: ['text'],
-        audio: { input: { format: { type: 'audio/pcm', rate: SAMPLE_RATE }, transcription: { model: TRANSCRIBE_MODEL }, turn_detection: null } }
+        audio: { input: { format: { type: 'audio/pcm', rate: SAMPLE_RATE }, transcription: null, turn_detection: null } }
       })
       appendAudio(client, audio)
       client.send({ type: 'input_audio_buffer.commit' })
-      const ev = await bus.waitFor('input transcription', (t) =>
-        t === 'conversation.item.input_audio_transcription.completed' || t === 'conversation.item.input_audio_transcription.failed')
-      if (ev.type === 'conversation.item.input_audio_transcription.failed' || ev.error) throw new Error(`transcription failed: ${JSON.stringify(ev.error ?? ev)}`)
-      record('transcribe', true, `"${(ev.transcript ?? '').trim().slice(0, 120)}" (model ${TRANSCRIBE_MODEL})`, true)
+      const committed = await bus.waitFor('input_audio_buffer.committed', isType('input_audio_buffer.committed'))
+      let text = ''
+      bus.on('response.output_text.delta', (e) => { text += e.delta ?? '' })
+      const t0 = Date.now()
+      client.send({
+        type: 'response.create',
+        response: {
+          conversation: 'none',
+          output_modalities: ['text'],
+          metadata: { purpose: 'transcription' },
+          instructions: 'Transkribiere die referenzierte Audioeingabe wörtlich in ihrer Originalsprache. Gib ausschließlich den transkribierten Text aus, ohne Kommentar.',
+          input: [{ type: 'item_reference', id: committed.item_id }]
+        }
+      })
+      await bus.waitFor('response.done (oob transcription)', isType('response.done'))
+      bus.off('response.output_text.delta')
+      if (!text.trim()) throw new Error('no transcription text returned')
+      record('oob-transcribe', true, `${Date.now() - t0} ms: "${text.trim().slice(0, 120)}"`, true)
     } catch (err) {
-      record('transcribe', false, `${err.message} (model ${TRANSCRIBE_MODEL})`, true)
+      record('oob-transcribe', false, err.message, true)
     }
   } else {
-    record('transcribe', false, 'skipped – no audio from step 3', true)
+    record('oob-transcribe', false, 'skipped – no audio from step 3', true)
   }
 
   // 5. server-vad (optional) --------------------------------------------------------------------

@@ -12,6 +12,7 @@ It uses the experimental Realtime client of the SAP Cloud SDK for AI: `@sap-ai-s
 | 2 | tool-call | yes | The model calls a function tool, gets the result and answers. This is the base for the CAP tools. |
 | 3 | audio-out | yes | The model answers with audio. Reports the latency to the first audio chunk and writes `out/assistant-answer.wav`. |
 | 4 | transcribe | optional | The audio from step 3 is sent back as user input, and the input transcription comes back. This is the base for the visit transcript. |
+| 4b | oob-transcribe | optional | Fallback if step 4 fails. `gpt-realtime` itself transcribes the user audio in an out-of-band response, with no separate transcription model. |
 | 5 | server-vad | optional | Server-side voice activity detection fires. This is the base for natural turn-taking and barge-in. |
 
 ## Run in SAP Business Application Studio
@@ -28,7 +29,7 @@ It uses the experimental Realtime client of the SAP Cloud SDK for AI: `@sap-ai-s
    ```
    Optional overrides:
    - `REALTIME_MODEL`: default `gpt-realtime`. Set it if the deployment uses a different model name.
-   - `TRANSCRIBE_MODEL`: default `gpt-4o-mini-transcribe`.
+   - `TRANSCRIBE_MODELS`: comma-separated, default `gpt-4o-mini-transcribe,gpt-4o-transcribe,whisper-1`. One attempt per model.
    - `STEP_TIMEOUT_MS`: default `30000`.
 3. Send back the block printed under `===== SUMMARY =====`.
 4. Optional: download `out/assistant-answer.wav` and listen to it.
