@@ -34,4 +34,22 @@ It uses the experimental Realtime client of the SAP Cloud SDK for AI: `@sap-ai-s
 3. Send back the block printed under `===== SUMMARY =====`.
 4. Optional: download `out/assistant-answer.wav` and listen to it.
 
+## Results (run 2, 2026-11-17, BAS, resource group `default`)
+
+| Step | Result | Details |
+|---|---|---|
+| connect | PASS | `session.created` after 814 ms (run 1: 782 ms) |
+| tool-call | PASS | `ping({"value":42})`, correct follow-up answer in German |
+| audio-out | PASS | first audio chunk after 906 ms (run 1: 462 ms), German speech is correct |
+| transcribe: gpt-4o-mini-transcribe | FAIL | `DeploymentNotFound`, not available behind AI Core |
+| transcribe: gpt-4o-transcribe | FAIL | `DeploymentNotFound` |
+| transcribe: **whisper-1** | **PASS** | Verbatim and correct |
+| oob-transcribe (gpt-realtime) | PASS | 1179 ms, verbatim and correct |
+| server-vad | PASS | `speech_started` / `speech_stopped` received |
+
+**Decisions:**
+- Built-in input transcription uses **`whisper-1`**. It runs asynchronously and needs no extra request.
+- Out-of-band transcription with `gpt-realtime` is the fallback if a whisper transcript is missing or failed.
+- **Limitation of this spike:** the input audio was synthetic speech without background noise. A real microphone test (car, street, dialects) is part of phase 6 and 8.
+
 **Never commit the service key.** `.env`, `*.key.json` and `out/` are git-ignored. After the spike, run `unset AICORE_SERVICE_KEY` or close the terminal.

@@ -3,15 +3,76 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
-    "@cap-js/hana": "^3",
+    "@cap-js/sqlite": "^3",
     "@sap/cds": "^10"
   },
   "devDependencies": {
-    "@cap-js/sqlite": "^3",
+    "@cap-js/cds-test": ">=0.3.0",
     "@sap/cds-dk": "^10"
   },
   "scripts": {
-    "start": "cds-serve"
+    "start": "cds-serve",
+    "watch": "cds watch",
+    "test": "node --test --test-concurrency=1"
   },
-  "private": true
+  "private": true,
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "sqlite",
+        "credentials": {
+          "url": ":memory:"
+        }
+      },
+      "c4c": {
+        "kind": "odata-v2",
+        "credentials": {
+          "destination": "SAP_Sales_Cloud_V1",
+          "path": "/sap/c4c/odata/v1/c4codataapi"
+        },
+        "csrf": true,
+        "csrfInBatch": true
+      },
+      "[development]": {
+        "auth": {
+          "kind": "mocked",
+          "users": {
+            "alice": {
+              "password": "alice",
+              "roles": [
+                "VisitDocumenter"
+              ],
+              "attr": {
+                "email": "alice.sales@example.com"
+              }
+            },
+            "carol": {
+              "password": "carol",
+              "roles": [
+                "VisitDocumenter"
+              ],
+              "attr": {
+                "email": "carol.sales@example.com"
+              }
+            },
+            "bob": {
+              "password": "bob",
+              "roles": [],
+              "attr": {
+                "email": "bob.nobody@example.com"
+              }
+            }
+          }
+        }
+      }
+    },
+    "voice": {
+      "sessionRetentionDays": 7,
+      "aicore": {
+        "resourceGroup": "default",
+        "realtimeModel": "gpt-realtime",
+        "transcriptionModel": "whisper-1"
+      }
+    }
+  }
 }
