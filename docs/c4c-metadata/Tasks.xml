@@ -1,0 +1,66 @@
+<!-- Verified fragment from c4codataapi $metadata, provided by the project team on 2026-11-16. EntitySet line and sample GET NOT yet provided. -->
+<EntityType Name="Tasks">
+<Key>
+<PropertyRef Name="ObjectID"/>
+</Key>
+<Property Name="ObjectID" Type="Edm.String" Nullable="false" MaxLength="70" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="DocumentType" Type="Edm.String" Nullable="true" MaxLength="4" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="DocumentTypeText" c4c:value-help="TasksDocumentTypeCollection"/>
+<Property Name="DocumentTypeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="ID" Type="Edm.String" Nullable="true" MaxLength="35" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="Subject" Type="Edm.String" Nullable="true" MaxLength="765" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="Status" Type="Edm.String" Nullable="true" MaxLength="2" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="StatusText" c4c:value-help="TasksStatusCollection"/>
+<Property Name="StatusText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="StartDateTime" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="StartDatetimeZoneCode" Type="Edm.String" Nullable="true" MaxLength="10" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="StartDatetimeZoneCodeText" c4c:value-help="TasksStartDatetimeZoneCodeCollection"/>
+<Property Name="StartDatetimeZoneCodeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="ActivityList" Type="Edm.Guid" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="DueDateTime" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="DueDatetimeZoneCode" Type="Edm.String" Nullable="true" MaxLength="10" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="DueDatetimeZoneCodeText" c4c:value-help="TasksDueDatetimeZoneCodeCollection"/>
+<Property Name="DueDatetimeZoneCodeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="PlannedDuration" Type="Edm.String" Nullable="true" MaxLength="20" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="ActualDuration" Type="Edm.String" Nullable="true" MaxLength="20" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="CompletionDateTime" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="MainEmployeeResponsiblePartyID" Type="Edm.String" Nullable="true" MaxLength="60" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="MainAccountPartyID" Type="Edm.String" Nullable="true" MaxLength="60" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="MainContactPartyID" Type="Edm.String" Nullable="true" MaxLength="60" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="ProcessorPartyID" Type="Edm.String" Nullable="true" MaxLength="60" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="CompletionPercent" Type="Edm.Decimal" Nullable="true" Precision="5" Scale="2" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="Category" Type="Edm.String" Nullable="true" MaxLength="4" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="CategoryText" c4c:value-help="TasksCategoryCollection"/>
+<Property Name="CategoryText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="PriorityCode" Type="Edm.String" Nullable="true" MaxLength="1" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="PriorityCodeText" c4c:value-help="TasksPriorityCodeCollection"/>
+<Property Name="PriorityCodeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="SalesTerritoryID" Type="Edm.String" Nullable="true" MaxLength="6" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="SalesTerritoryName" Type="Edm.String" Nullable="true" MaxLength="40" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="SalesOrganisationID" Type="Edm.String" Nullable="true" MaxLength="20" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="DistributionChannelCode" Type="Edm.String" Nullable="true" MaxLength="2" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="DistributionChannelCodeText" c4c:value-help="TasksDistributionChannelCodeCollection"/>
+<Property Name="DistributionChannelCodeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="DivisionCode" Type="Edm.String" Nullable="true" MaxLength="2" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="DivisionCodeText" c4c:value-help="TasksDivisionCodeCollection"/>
+<Property Name="DivisionCodeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="Account" Type="Edm.String" Nullable="true" MaxLength="480" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="AccountUUID" Type="Edm.Guid" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="DataOriginTypeCode" Type="Edm.String" Nullable="true" MaxLength="3" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="DataOriginTypeCodeText" c4c:value-help="TasksDataOriginTypeCodeCollection"/>
+<Property Name="DataOriginTypeCodeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="Owner" Type="Edm.String" Nullable="true" MaxLength="480" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="OwnerUUID" Type="Edm.Guid" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="PrimaryContact" Type="Edm.String" Nullable="true" MaxLength="480" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="PrimaryContactUUID" Type="Edm.Guid" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="Processor" Type="Edm.String" Nullable="true" MaxLength="480" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="ProcessorEmailURI" Type="Edm.String" Nullable="true" MaxLength="254" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="ProcessorPartyName" Type="Edm.String" Nullable="true" MaxLength="255" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="ProcessorUUID" Type="Edm.Guid" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="ReportedDateTime" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="UUID" Type="Edm.Guid" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="ChangedBy" Type="Edm.String" Nullable="true" MaxLength="480" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="LastChangeDateTime" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="MandatoryFlag" Type="Edm.Boolean" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="EntityLastChangedOn" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="ETag" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" ConcurrencyMode="Fixed" sap:creatable="false" sap:updatable="false" sap:filterable="false"/>
+<Property Name="CreatedBySSI" Type="Edm.String" Nullable="true" MaxLength="3" FixedLength="true" sap:creatable="true" sap:updatable="false" sap:filterable="true" sap:text="CreatedBySSIText" c4c:value-help="TasksCreatedBySSICollection"/>
+<Property Name="CreatedBySSIText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="CreatedOn" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="Z_Infilect_StoreID_KUT" Type="Edm.String" Nullable="true" MaxLength="40" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" c4c:extension-field="true"/>
+<NavigationProperty Name="TasksAttachmentFolder" Relationship="c4codata.Tasks_TasksAttachmentFolder" FromRole="Tasks" ToRole="TasksAttachmentFolder"/>
+<NavigationProperty Name="TasksBTDReference" Relationship="c4codata.Tasks_TasksBTDReference" FromRole="Tasks" ToRole="TasksBTDReference"/>
+<NavigationProperty Name="TasksInvolvedParties" Relationship="c4codata.Tasks_TasksInvolvedParties" FromRole="Tasks" ToRole="TasksInvolvedParties"/>
+<NavigationProperty Name="TasksTextCollection" Relationship="c4codata.Tasks_TasksTextCollection" FromRole="Tasks" ToRole="TasksTextCollection"/>
+</EntityType>

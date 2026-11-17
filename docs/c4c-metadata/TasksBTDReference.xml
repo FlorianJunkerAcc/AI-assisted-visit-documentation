@@ -1,0 +1,24 @@
+<!-- Verified fragment from c4codataapi $metadata, provided by the project team on 2026-11-16.
+     EntitySet: TasksBTDReferenceCollection (seen in __metadata.uri of a real GET).
+     TasksBTDReferenceTypeCodeCollection (selected): 2054 = Visit, 12 = Appointment.
+     BTDRoleCode (selected): 1 = Predecessor, 2 = Successor (full list has ~30 values).
+     REAL follow-up task created in C4C UI from a Visit (2026-11-16) contained:
+       { "ParentObjectID": "<Task ObjectID>", "TaskID": "901", "ID": "2451", "TypeCode": "12", "BTDRoleCode": "1" }
+     → C4C itself uses TypeCode 12 (Appointment), NOT 2054, for the Visit reference. Use 12 + role 1.
+     → CONFIRMED: "ID" = Visit.ID ("2451"), not Visit.ObjectID ("029D56FE83441EECB0C2F529BDBBA1EC").
+     → CONFIRMED: Visit.Account (Guid) = Task.AccountUUID; Visit.MainAccountPartyID = Task.MainAccountPartyID. -->
+<EntityType Name="TasksBTDReference" c4c:parent-entity-type="Tasks">
+<Key>
+<PropertyRef Name="ObjectID"/>
+</Key>
+<Property Name="ObjectID" Type="Edm.String" Nullable="false" MaxLength="70" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="ParentObjectID" Type="Edm.String" Nullable="true" MaxLength="70" FixedLength="true" sap:creatable="true" sap:updatable="false" sap:filterable="true"/>
+<Property Name="TaskID" Type="Edm.String" Nullable="true" MaxLength="35" FixedLength="true" sap:creatable="true" sap:updatable="false" sap:filterable="true" c4c:is-parent-internal-key="true"/>
+<Property Name="ID" Type="Edm.String" Nullable="true" MaxLength="35" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="TypeCode" Type="Edm.String" Nullable="true" MaxLength="15" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="TypeCodeText" c4c:value-help="TasksBTDReferenceTypeCodeCollection"/>
+<Property Name="TypeCodeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="BTDRoleCode" Type="Edm.String" Nullable="true" MaxLength="3" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="BTDRoleCodeText" c4c:value-help="TasksBTDReferenceBTDRoleCodeCollection"/>
+<Property Name="BTDRoleCodeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="ETag" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" ConcurrencyMode="Fixed" sap:creatable="false" sap:updatable="false" sap:filterable="false"/>
+<NavigationProperty Name="Tasks" Relationship="c4codata.Tasks_TasksBTDReference" FromRole="TasksBTDReference" ToRole="Tasks"/>
+</EntityType>

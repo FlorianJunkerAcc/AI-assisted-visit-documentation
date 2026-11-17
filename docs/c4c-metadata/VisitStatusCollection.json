@@ -1,0 +1,9 @@
+{
+  "_source": "GET c4codataapi/VisitStatusCollection, provided by the project team on 2026-11-16",
+  "codes": [
+    { "Code": "1", "Description": "Open" },
+    { "Code": "2", "Description": "In Process" },
+    { "Code": "3", "Description": "Completed" },
+    { "Code": "4", "Description": "Canceled" }
+  ]
+}

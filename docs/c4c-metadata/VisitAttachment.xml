@@ -1,0 +1,29 @@
+<!-- Verified fragment from c4codataapi $metadata, provided by the project team on 2026-11-16 (closing tag/nav props not included in paste). EntitySet line NOT yet provided. -->
+<EntityType Name="VisitAttachment">
+<Key>
+<PropertyRef Name="ObjectID"/>
+</Key>
+<Property Name="ETag" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" ConcurrencyMode="Fixed" sap:creatable="false" sap:updatable="false" sap:filterable="false"/>
+<Property Name="Binary" Type="Edm.Binary" MaxLength="Max" Nullable="true" FixedLength="false" sap:creatable="true" sap:updatable="false" sap:filterable="false"/>
+<Property Name="CategoryCode" Type="Edm.String" Nullable="false" MaxLength="1" FixedLength="true" sap:creatable="true" sap:updatable="false" sap:filterable="true" sap:text="CategoryCodeText" c4c:value-help="VisitAttachmentCategoryCodeCollection"/>
+<Property Name="CategoryCodeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="CreatedBy" Type="Edm.String" Nullable="true" MaxLength="80" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="CreatedOn" Type="Edm.DateTime" Nullable="true" Precision="7" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="DocumentLink" Type="Edm.String" Nullable="true" FixedLength="false" sap:creatable="true" sap:updatable="false" sap:filterable="true"/>
+<Property Name="LastUpdatedBy" Type="Edm.String" Nullable="true" MaxLength="80" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="LastUpdatedOn" Type="Edm.DateTime" Nullable="true" Precision="7" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="LinkWebURI" Type="Edm.String" Nullable="true" FixedLength="false" sap:creatable="true" sap:updatable="false" sap:filterable="true"/>
+<Property Name="MimeType" Type="Edm.String" Nullable="true" FixedLength="false" sap:creatable="true" sap:updatable="false" sap:filterable="true"/>
+<Property Name="Name" Type="Edm.String" Nullable="true" FixedLength="false" sap:creatable="true" sap:updatable="false" sap:filterable="true"/>
+<Property Name="ObjectID" Type="Edm.String" Nullable="false" MaxLength="70" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="ParentObjectID" Type="Edm.String" Nullable="true" MaxLength="70" FixedLength="true" sap:creatable="true" sap:updatable="false" sap:filterable="true"/>
+<Property Name="TypeCode" Type="Edm.String" Nullable="true" MaxLength="5" FixedLength="true" sap:creatable="true" sap:updatable="false" sap:filterable="true" sap:text="TypeCodeText" c4c:value-help="VisitAttachmentTypeCodeCollection"/>
+<Property Name="TypeCodeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="UUID" Type="Edm.Guid" Nullable="false" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="VisitID" Type="Edm.String" Nullable="true" MaxLength="35" FixedLength="false" sap:creatable="true" sap:updatable="false" sap:filterable="true" c4c:is-parent-internal-key="true"/>
+<!-- EntitySets (provided 2026-11-16):
+<EntitySet Name="VisitAttachmentCategoryCodeCollection" EntityType="c4codata.CodeList" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:semantics="fixed-values"/>
+<EntitySet Name="VisitAttachmentCollection" EntityType="c4codata.VisitAttachment" sap:creatable="true" sap:updatable="true" sap:deletable="true"/>
+<EntitySet Name="VisitAttachmentTypeCodeCollection" EntityType="c4codata.CodeList" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:semantics="fixed-values"/>
+VisitAttachmentCategoryCodeCollection: 1 = Folder (not supported), 2 = Document (→ use for PDFs), 3 = Link -->
+<!-- VisitAttachmentTypeCodeCollection (selected values): 10001 = Standard Attachment (→ transcript PDF), 10009 = Summary (→ summary PDF) -->

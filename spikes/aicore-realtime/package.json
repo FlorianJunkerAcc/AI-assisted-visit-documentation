@@ -1,0 +1,14 @@
+{
+  "name": "spike-aicore-realtime",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Throw-away spike: verify GPT Realtime via SAP AI Core (WebSocket, tool calling, audio).",
+  "scripts": {
+    "spike": "node spike.js"
+  },
+  "dependencies": {
+    "@sap-ai-sdk/openai": "^2.15.0",
+    "ws": "^8"
+  }
+}

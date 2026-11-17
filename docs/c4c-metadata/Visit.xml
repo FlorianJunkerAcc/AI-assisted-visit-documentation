@@ -1,0 +1,88 @@
+<!-- Verified fragment from c4codataapi $metadata, provided by the project team on 2026-11-16. Source of truth for Visit mapping. -->
+<EntitySet Name="VisitCollection" EntityType="c4codata.Visit" sap:creatable="true" sap:updatable="true" sap:deletable="true"/>
+<EntityType Name="Visit">
+<Key>
+<PropertyRef Name="ObjectID"/>
+</Key>
+<Property Name="ObjectID" Type="Edm.String" Nullable="false" MaxLength="70" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="ID" Type="Edm.String" Nullable="true" MaxLength="35" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="Subject" Type="Edm.String" Nullable="true" MaxLength="765" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="Status" Type="Edm.String" Nullable="true" MaxLength="2" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="StatusText" c4c:value-help="VisitStatusCollection"/>
+<Property Name="StatusText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="PriorityCode" Type="Edm.String" Nullable="true" MaxLength="1" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="PriorityCodeText" c4c:value-help="VisitPriorityCodeCollection"/>
+<Property Name="PriorityCodeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="Account" Type="Edm.Guid" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="MainAccountPartyID" Type="Edm.String" Nullable="true" MaxLength="60" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="AccountPartyName" Type="Edm.String" Nullable="true" MaxLength="255" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="PrimaryContactUUID" Type="Edm.Guid" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="MainContactPartyID" Type="Edm.String" Nullable="true" MaxLength="60" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="PrimaryContactPartyName" Type="Edm.String" Nullable="true" MaxLength="255" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="Owner" Type="Edm.Guid" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="OwnerPartyID" Type="Edm.String" Nullable="true" MaxLength="60" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="OwnerEmailURI" Type="Edm.String" Nullable="true" MaxLength="254" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="OwnerPartyName" Type="Edm.String" Nullable="true" MaxLength="255" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="FormattedName" Type="Edm.String" Nullable="true" MaxLength="480" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="false"/>
+<Property Name="StartDateTime" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="StartTimeZoneCode" Type="Edm.String" Nullable="true" MaxLength="10" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="StartTimeZoneCodeText" c4c:value-help="VisitStartTimeZoneCodeCollection"/>
+<Property Name="StartTimeZoneCodeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="EndDateTime" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="EndTimeZoneCode" Type="Edm.String" Nullable="true" MaxLength="10" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="EndTimeZoneCodeText" c4c:value-help="VisitEndTimeZoneCodeCollection"/>
+<Property Name="EndTimeZoneCodeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="AllDayEvent" Type="Edm.Boolean" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="ActualStartDateTime" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="ActualEndDateTime" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="Organizer" Type="Edm.Guid" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="OrganizerPartyID" Type="Edm.String" Nullable="true" MaxLength="60" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="OrganizerPartyName" Type="Edm.String" Nullable="true" MaxLength="255" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="OrganizerEmailURI" Type="Edm.String" Nullable="true" MaxLength="254" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="SalesTerritoryID" Type="Edm.String" Nullable="true" MaxLength="6" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="SalesTerritoryName" Type="Edm.String" Nullable="true" MaxLength="40" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="SalesOrganisationID" Type="Edm.String" Nullable="true" MaxLength="20" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="DistributionChannel" Type="Edm.String" Nullable="true" MaxLength="2" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="DistributionChannelText" c4c:value-help="VisitDistributionChannelCollection"/>
+<Property Name="DistributionChannelText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="Division" Type="Edm.String" Nullable="true" MaxLength="2" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="DivisionText" c4c:value-help="VisitDivisionCollection"/>
+<Property Name="DivisionText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="PerfectStoreIndicator" Type="Edm.Boolean" Nullable="true" sap:creatable="true" sap:updatable="false" sap:filterable="true"/>
+<Property Name="VisitType" Type="Edm.String" Nullable="true" MaxLength="4" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="VisitTypeText" c4c:value-help="VisitVisitTypeCollection"/>
+<Property Name="VisitTypeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="AddressSnapshotUUID" Type="Edm.Guid" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="false"/>
+<Property Name="Location" Type="Edm.String" Nullable="true" MaxLength="480" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="EntityLastChangedOn" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="ETag" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" ConcurrencyMode="Fixed" sap:creatable="false" sap:updatable="false" sap:filterable="false"/>
+<Property Name="DataOriginTypeCode" Type="Edm.String" Nullable="true" MaxLength="3" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="DataOriginTypeCodeText" c4c:value-help="VisitDataOriginTypeCodeCollection"/>
+<Property Name="DataOriginTypeCodeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="AdditionalLocationName" Type="Edm.String" Nullable="true" MaxLength="765" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="CreationDateTime" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="GroupwareItemID" Type="Edm.String" Nullable="true" MaxLength="765" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="Route" Type="Edm.Guid" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="Tour" Type="Edm.Guid" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="ReportedDateTime" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="UUID" Type="Edm.Guid" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="MarkedForDeletion" Type="Edm.Boolean" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="MarkedForDeletionDate" Type="Edm.DateTime" Nullable="true" Precision="0" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:display-format="Date"/>
+<Property Name="LastChangeDateTime" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="RecurringBusinessActivityNodeID" Type="Edm.Guid" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="RecurrenceActGroupwareID" Type="Edm.String" Nullable="true" MaxLength="765" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="OccurrenceDate" Type="Edm.DateTime" Nullable="true" Precision="0" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:display-format="Date"/>
+<Property Name="StartGeoCoordinatesAltitudeMeasure" Type="Edm.Decimal" Nullable="true" Precision="31" Scale="14" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="StartGeoCoordinatesLatitudeMeasure" Type="Edm.Decimal" Nullable="true" Precision="31" Scale="14" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="StartGeoCoordinatesLongitudeMeasure" Type="Edm.Decimal" Nullable="true" Precision="31" Scale="14" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="EndGeoCoordinatesAltitudeMeasure" Type="Edm.Decimal" Nullable="true" Precision="31" Scale="14" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="EndGeoCoordinatesLatitudeMeasure" Type="Edm.Decimal" Nullable="true" Precision="31" Scale="14" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="EndGeoCoordinatesLongitudeMeasure" Type="Edm.Decimal" Nullable="true" Precision="31" Scale="14" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="OutOfRangeCheckIn" Type="Edm.Boolean" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="Draft" Type="Edm.Boolean" Nullable="true" sap:creatable="true" sap:updatable="false" sap:filterable="true"/>
+<Property Name="CollaborationChannelCode" Type="Edm.String" Nullable="true" MaxLength="2" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="CollaborationChannelCodeText" c4c:value-help="VisitCollaborationChannelCodeCollection"/>
+<Property Name="CollaborationChannelCodeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="CollaborationURL" Type="Edm.String" Nullable="true" FixedLength="false" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="CreatedBySSI" Type="Edm.String" Nullable="true" MaxLength="3" FixedLength="true" sap:creatable="true" sap:updatable="false" sap:filterable="true" sap:text="CreatedBySSIText" c4c:value-help="VisitCreatedBySSICollection"/>
+<Property Name="CreatedBySSIText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="CreatedBy" Type="Edm.String" Nullable="true" MaxLength="480" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="AccountName" Type="Edm.String" Nullable="true" MaxLength="80" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="Z_Infilect_StoreID_KUT" Type="Edm.String" Nullable="true" MaxLength="40" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" c4c:extension-field="true"/>
+<NavigationProperty Name="VisitAttachment" Relationship="c4codata.Visit_VisitAttachment" FromRole="Visit" ToRole="VisitAttachment"/>
+<NavigationProperty Name="VisitBTDReference" Relationship="c4codata.Visit_VisitBTDReference" FromRole="Visit" ToRole="VisitBTDReference"/>
+<NavigationProperty Name="VisitParty" Relationship="c4codata.Visit_VisitParty" FromRole="Visit" ToRole="VisitParty"/>
+<NavigationProperty Name="VisitTextCollection" Relationship="c4codata.Visit_VisitTextCollection" FromRole="Visit" ToRole="VisitTextCollection"/>
+<NavigationProperty Name="VisitWorklistItem" Relationship="c4codata.Visit_VisitWorklistItem" FromRole="Visit" ToRole="VisitWorklistItem"/>
+</EntityType>

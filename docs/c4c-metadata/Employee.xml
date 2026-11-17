@@ -1,0 +1,33 @@
+<!-- Verified fragment from c4codataapi $metadata, provided by the project team on 2026-11-16.
+     Only properties relevant for this app are kept here (data minimisation: the app must $select exactly these).
+     The full EntityType also contains address, birth, gender, marital status, phone etc. These are NOT used.
+     EntitySet: EmployeeCollection (confirmed by successful GET 2026-11-16).
+     CONFIRMED mapping (real GET of an employee referenced by a Task):
+       Employee.UUID              = Tasks.OwnerUUID / Tasks.ProcessorUUID
+       Employee.BusinessPartnerID = Tasks.ProcessorPartyID / Tasks.MainEmployeeResponsiblePartyID  (e.g. "8000000780")
+       Employee.EmployeeID        is a different value (e.g. "E9991") → NOT used for Task party IDs.
+     NOTE: C4C rejected $filter with "or" across two different properties → use one property per filter. -->
+<EntityType Name="Employee">
+<Key>
+<PropertyRef Name="ObjectID"/>
+</Key>
+<Property Name="ObjectID" Type="Edm.String" Nullable="false" MaxLength="70" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="EmployeeID" Type="Edm.String" Nullable="true" MaxLength="20" FixedLength="true" sap:creatable="true" sap:updatable="false" sap:filterable="true"/>
+<Property Name="UUID" Type="Edm.Guid" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="UserID" Type="Edm.String" Nullable="true" MaxLength="40" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="BusinessPartnerID" Type="Edm.String" Nullable="true" MaxLength="10" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="EmployeeValidityStartDate" Type="Edm.DateTime" Nullable="true" Precision="0" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:display-format="Date"/>
+<Property Name="EmployeeValidityEndDate" Type="Edm.DateTime" Nullable="true" Precision="0" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:display-format="Date"/>
+<Property Name="BusinessPartnerFormattedName" Type="Edm.String" Nullable="true" MaxLength="480" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="FirstName" Type="Edm.String" Nullable="false" MaxLength="40" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="MiddleName" Type="Edm.String" Nullable="true" MaxLength="40" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="LastName" Type="Edm.String" Nullable="false" MaxLength="40" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="NickName" Type="Edm.String" Nullable="true" MaxLength="40" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="Email" Type="Edm.String" Nullable="true" MaxLength="255" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="UserValidityStartDate" Type="Edm.DateTime" Nullable="true" Precision="0" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:display-format="Date"/>
+<Property Name="UserValidityEndDate" Type="Edm.DateTime" Nullable="true" Precision="0" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:display-format="Date"/>
+<Property Name="UserLockedIndicator" Type="Edm.Boolean" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="ETag" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" ConcurrencyMode="Fixed" sap:creatable="false" sap:updatable="false" sap:filterable="false"/>
+<NavigationProperty Name="BusinessUser" Relationship="c4codata.Employee_BusinessUser" FromRole="Employee" ToRole="BusinessUser"/>
+<NavigationProperty Name="EmployeeOrganisationalUnitAssignment" Relationship="c4codata.Employee_EmployeeOrganisationalUnitAssignment" FromRole="Employee" ToRole="EmployeeOrganisationalUnitAssignment"/>
+</EntityType>

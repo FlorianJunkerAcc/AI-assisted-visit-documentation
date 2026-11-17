@@ -1,0 +1,36 @@
+# Spike: GPT Realtime via SAP AI Core
+
+This is a throw-away technical check. It is **not** part of the application. It answers one question: can CAP (Node.js) hold a speech-to-speech session with the `gpt-realtime` deployment in SAP AI Core (resource group `default`)?
+
+It uses the experimental Realtime client of the SAP Cloud SDK for AI: `@sap-ai-sdk/openai/realtime`, available since v2.15.0. That client supports WebSocket from Node.js only, not from the browser, which matches the planned CAP relay architecture.
+
+## Checks
+
+| # | Step | Mandatory | Proves |
+|---|---|---|---|
+| 1 | connect | yes | Deployment is resolved by model name and the WebSocket session opens |
+| 2 | tool-call | yes | The model calls a function tool, gets the result and answers. This is the base for the CAP tools. |
+| 3 | audio-out | yes | The model answers with audio. Reports the latency to the first audio chunk and writes `out/assistant-answer.wav`. |
+| 4 | transcribe | optional | The audio from step 3 is sent back as user input, and the input transcription comes back. This is the base for the visit transcript. |
+| 5 | server-vad | optional | Server-side voice activity detection fires. This is the base for natural turn-taking and barge-in. |
+
+## Run in SAP Business Application Studio
+
+1. Get an **SAP AI Core service key** (JSON). It can come from either of these places:
+   - SAP BTP Cockpit → Cloud Foundry → Spaces → `AI_DEV` → Instances → *SAP AI Core instance* → Service Keys → view (or create) a key → copy the JSON.
+   - Or in the BAS terminal, after `cf login` and targeting space `AI_DEV`: `cf service-key <ai-core-instance> <key-name>`, then copy the JSON part.
+2. In the BAS terminal:
+   ```bash
+   cd spikes/aicore-realtime
+   npm install
+   export AICORE_SERVICE_KEY='<paste the JSON on one line>'
+   npm run spike
+   ```
+   Optional overrides:
+   - `REALTIME_MODEL`: default `gpt-realtime`. Set it if the deployment uses a different model name.
+   - `TRANSCRIBE_MODEL`: default `gpt-4o-mini-transcribe`.
+   - `STEP_TIMEOUT_MS`: default `30000`.
+3. Send back the block printed under `===== SUMMARY =====`.
+4. Optional: download `out/assistant-answer.wav` and listen to it.
+
+**Never commit the service key.** `.env`, `*.key.json` and `out/` are git-ignored. After the spike, run `unset AICORE_SERVICE_KEY` or close the terminal.

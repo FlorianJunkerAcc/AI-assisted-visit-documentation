@@ -1,0 +1,25 @@
+<!-- Verified fragment from c4codataapi $metadata, provided by the project team on 2026-11-16. EntitySet line NOT yet provided.
+     TasksTextCollectionTypeCodeCollection (selected): 10002 = Body Text → use for Task description.
+     LanguageCode: values not verified → omit (nullable) until confirmed. -->
+<EntityType Name="TasksTextCollection" c4c:parent-entity-type="Tasks">
+<Key>
+<PropertyRef Name="ObjectID"/>
+</Key>
+<Property Name="ObjectID" Type="Edm.String" Nullable="false" MaxLength="70" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="ParentObjectID" Type="Edm.String" Nullable="true" MaxLength="70" FixedLength="true" sap:creatable="true" sap:updatable="false" sap:filterable="true"/>
+<Property Name="TaskID" Type="Edm.String" Nullable="true" MaxLength="35" FixedLength="true" sap:creatable="true" sap:updatable="false" sap:filterable="true" c4c:is-parent-internal-key="true"/>
+<Property Name="Text" Type="Edm.String" Nullable="true" FixedLength="false" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="LanguageCode" Type="Edm.String" Nullable="true" MaxLength="2" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="LanguageCodeText" c4c:value-help="TasksTextCollectionLanguageCodeCollection"/>
+<Property Name="LanguageCodeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="TypeCode" Type="Edm.String" Nullable="true" MaxLength="5" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true" sap:text="TypeCodeText" c4c:value-help="TasksTextCollectionTypeCodeCollection"/>
+<Property Name="TypeCodeText" Type="Edm.String" Nullable="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="AuthorName" Type="Edm.String" Nullable="true" MaxLength="40" FixedLength="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="AuthorUUID" Type="Edm.Guid" Nullable="true" sap:creatable="true" sap:updatable="true" sap:filterable="true"/>
+<Property Name="CreatedOn" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="CreatedBy" Type="Edm.String" Nullable="true" MaxLength="80" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="UpdatedOn" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="true" sap:updatable="false" sap:filterable="true"/>
+<Property Name="LastUpdatedBy" Type="Edm.String" Nullable="true" MaxLength="80" FixedLength="true" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<Property Name="ETag" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" ConcurrencyMode="Fixed" sap:creatable="false" sap:updatable="false" sap:filterable="false"/>
+<Property Name="EntityLastChangedOn" Type="Edm.DateTimeOffset" Nullable="true" Precision="7" sap:creatable="false" sap:updatable="false" sap:filterable="true"/>
+<NavigationProperty Name="Tasks" Relationship="c4codata.Tasks_TasksTextCollection" FromRole="TasksTextCollection" ToRole="Tasks"/>
+</EntityType>
