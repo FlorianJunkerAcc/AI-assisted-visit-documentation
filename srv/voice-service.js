@@ -6,18 +6,10 @@ import * as c4c from './lib/c4c-client.js'
 import { localDayRangeUtc, formatLocalTime, formatLocalDate, zonedTimeToUtc, localDate } from './lib/time.js'
 
 const LOG = cds.log('voice')
-const { SELECT, INSERT, UPDATE } = cds.ql
+const { SELECT, INSERT, UPDATE, DELETE } = cds.ql
 
 // Session states in which the conversation is finished; no tool may change anything anymore.
 const FINAL_STATES = ['COMPLETED', 'PARTIAL_FAILURE', 'FAILED', 'CANCELLED', 'NO_VISIT']
-
-// Tools that are defined in the service model but not implemented yet.
-// They fail explicitly instead of pretending to work.
-const NOT_YET_IMPLEMENTED = {
-  addTaskDraft: 4,
-  updateTaskDraft: 4,
-  removeTaskDraft: 4
-}
 
 export default class VoiceAssistantService extends cds.ApplicationService {
   init () {
@@ -189,6 +181,43 @@ export default class VoiceAssistantService extends cds.ApplicationService {
       return { session, draft }
     }
 
+    // --- task helpers (phase 4) ------------------------------------------------------------------
+
+    /** Resolves a processor from C4C by name, or falls back to the current user. */
+    const resolveProcessor = async (processorName, session) => {
+      const name = String(processorName ?? '').trim()
+      if (!name) {
+        let userEmployees
+        try { userEmployees = await c4c.findActiveEmployeesByEmail(session.userEmail) } catch { /* fall back to UUID-only */ }
+        return {
+          processorStatus: 'VALID',
+          c4cProcessorUUID: session.c4cEmployeeUUID,
+          c4cProcessorBPID: session.c4cEmployeeBPID,
+          c4cProcessorName: userEmployees?.[0]?.name ?? null,
+          proposedProcessorName: null,
+          processorMessage: null,
+          matches: []
+        }
+      }
+      let employees
+      try { employees = await c4c.findActiveEmployeesByName(name) } catch {
+        return { processorStatus: 'INVALID', c4cProcessorUUID: null, c4cProcessorBPID: null, c4cProcessorName: null, proposedProcessorName: name, processorMessage: 'SAP Sales Cloud is not reachable.', matches: [] }
+      }
+      if (!employees.length) return { processorStatus: 'INVALID', c4cProcessorUUID: null, c4cProcessorBPID: null, c4cProcessorName: null, proposedProcessorName: name, processorMessage: `No active employee with name "${name}".`, matches: [] }
+      if (employees.length > 1) return { processorStatus: 'AMBIGUOUS', c4cProcessorUUID: null, c4cProcessorBPID: null, c4cProcessorName: null, proposedProcessorName: name, processorMessage: `Multiple employees match "${name}". Provide the full name.`, matches: employees.map(e => ({ name: e.name })) }
+      const e = employees[0]
+      return { processorStatus: 'VALID', c4cProcessorUUID: e.uuid, c4cProcessorBPID: e.businessPartnerID, c4cProcessorName: e.name, proposedProcessorName: name, processorMessage: null, matches: [] }
+    }
+
+    /** Increments the visit draft version; if in PREVIEW, reverts session and supersedes the pending confirmation. */
+    const bumpDraft = async (session, draft) => {
+      if (session.status === 'PREVIEW') {
+        await UPDATE(CommitConfirmations).with({ status: 'SUPERSEDED' }).where({ session_ID: session.ID, status: 'PENDING' })
+        await UPDATE(VoiceSessions, session.ID).with({ status: 'VISIT_SELECTED' })
+      }
+      await UPDATE(VisitDrafts, draft.ID).with({ version: (draft.version ?? 1) + 1 })
+    }
+
     this.on('getVisitContext', async (req) => {
       const { session, draft } = await loadSessionWithVisit(req)
       if (!draft) return fail('NO_VISIT_SELECTED', 'Call findVisit and selectVisit first.')
@@ -298,6 +327,12 @@ export default class VoiceAssistantService extends cds.ApplicationService {
 
       const tasks = await SELECT.from(TaskDrafts).where({ visitDraft_ID: draft.ID }).orderBy('position')
 
+      const unresolved = tasks.filter(t => t.processorStatus !== 'VALID')
+      if (unresolved.length) {
+        return fail('TASK_PROCESSOR_UNRESOLVED',
+          `${unresolved.length} task(s) have an unresolved processor. Call updateTaskDraft for each task to provide a valid processor name.`)
+      }
+
       // Hash over the frozen draft content – any change to the draft produces a different hash.
       const frozen = JSON.stringify({
         sessionId: session.ID,
@@ -385,11 +420,122 @@ export default class VoiceAssistantService extends cds.ApplicationService {
       return ok('COMMIT_CONFIRMED', 'Confirmation accepted. The visit data will now be saved to SAP Sales Cloud. This may take a few seconds – do not hang up.')
     })
 
-    // --- not yet implemented tools --------------------------------------------------------------
+    // --- task drafts (phase 4) -------------------------------------------------------------------
 
-    for (const [action, phase] of Object.entries(NOT_YET_IMPLEMENTED)) {
-      this.on(action, (req) => req.reject(501, `NOT_IMPLEMENTED: ${action} (planned for phase ${phase})`))
-    }
+    this.on('addTaskDraft', async (req) => {
+      const { subject, description, dueDate, processorName } = req.data
+      const { session, draft } = await loadSessionWithVisit(req)
+      if (!session) return
+      if (!draft) return fail('NO_VISIT_SELECTED', 'Call findVisit and selectVisit first.')
+      if (!['VISIT_SELECTED', 'PREVIEW'].includes(session.status)) {
+        return fail('SESSION_STATE_INVALID', 'Tasks cannot be added in the current session state.')
+      }
+      const subjectStr = String(subject ?? '').trim()
+      if (!subjectStr) return fail('SUBJECT_REQUIRED', 'A task subject is required.')
+      if (subjectStr.length > 765) return fail('SUBJECT_TOO_LONG', 'Task subject must be at most 765 characters.')
+
+      const processor = await resolveProcessor(processorName, session)
+      const existing = await SELECT.from(TaskDrafts).where({ visitDraft_ID: draft.ID })
+      const position = existing.reduce((max, t) => Math.max(max, t.position ?? 0), 0) + 1
+
+      const taskID = cds.utils.uuid()
+      await INSERT.into(TaskDrafts).entries({
+        ID: taskID,
+        visitDraft_ID: draft.ID,
+        position,
+        proposedSubject: subjectStr,
+        proposedDescription: description ?? null,
+        proposedDueDate: dueDate ?? null,
+        proposedProcessorName: processor.proposedProcessorName,
+        processorStatus: processor.processorStatus,
+        processorMessage: processor.processorMessage,
+        c4cProcessorUUID: processor.c4cProcessorUUID,
+        c4cProcessorBPID: processor.c4cProcessorBPID,
+        c4cProcessorName: processor.c4cProcessorName
+      })
+      await bumpDraft(session, draft)
+
+      const result = { taskId: taskID, processorStatus: processor.processorStatus }
+      if (processor.processorStatus === 'VALID' && processor.c4cProcessorName) result.processorName = processor.c4cProcessorName
+      if (processor.matches.length) result.matches = processor.matches
+      if (processor.processorMessage) result.processorMessage = processor.processorMessage
+
+      const message = processor.processorStatus === 'AMBIGUOUS'
+        ? 'Task draft added, but processor is ambiguous. Ask the user to specify the full name and call updateTaskDraft.'
+        : processor.processorStatus === 'INVALID'
+          ? 'Task draft added, but processor could not be resolved. Ask the user for the correct name and call updateTaskDraft.'
+          : 'Task draft added.'
+      return ok('TASK_ADDED', message, result)
+    })
+
+    this.on('updateTaskDraft', async (req) => {
+      const { taskId, subject, description, dueDate, processorName } = req.data
+      const { session, draft } = await loadSessionWithVisit(req)
+      if (!session) return
+      if (!draft) return fail('NO_VISIT_SELECTED', 'Call findVisit and selectVisit first.')
+      if (!['VISIT_SELECTED', 'PREVIEW'].includes(session.status)) {
+        return fail('SESSION_STATE_INVALID', 'Tasks cannot be updated in the current session state.')
+      }
+      if (!taskId) return fail('TASK_ID_REQUIRED', 'Provide the taskId from addTaskDraft.')
+      const task = await SELECT.one.from(TaskDrafts).where({ ID: taskId, visitDraft_ID: draft.ID })
+      if (!task) return fail('TASK_NOT_FOUND', 'Task draft not found in this session. Use only task IDs returned by addTaskDraft.')
+
+      const updates = {}
+      if (subject !== undefined && subject !== null) {
+        const s = String(subject).trim()
+        if (!s) return fail('SUBJECT_REQUIRED', 'A task subject is required.')
+        if (s.length > 765) return fail('SUBJECT_TOO_LONG', 'Task subject must be at most 765 characters.')
+        updates.proposedSubject = s
+      }
+      if (description !== undefined) updates.proposedDescription = description ?? null
+      if (dueDate !== undefined) updates.proposedDueDate = dueDate ?? null
+
+      let processor = null
+      if (processorName !== undefined) {
+        processor = await resolveProcessor(processorName, session)
+        updates.proposedProcessorName = processor.proposedProcessorName
+        updates.processorStatus = processor.processorStatus
+        updates.processorMessage = processor.processorMessage
+        updates.c4cProcessorUUID = processor.c4cProcessorUUID
+        updates.c4cProcessorBPID = processor.c4cProcessorBPID
+        updates.c4cProcessorName = processor.c4cProcessorName
+      }
+
+      if (Object.keys(updates).length) {
+        await bumpDraft(session, draft)
+        await UPDATE(TaskDrafts, task.ID).with(updates)
+      }
+
+      const currentStatus = processor?.processorStatus ?? task.processorStatus
+      const result = { taskId: task.ID, processorStatus: currentStatus }
+      if (processor?.matches?.length) result.matches = processor.matches
+      if (processor?.processorMessage) result.processorMessage = processor.processorMessage
+      if (currentStatus === 'VALID') result.processorName = processor?.c4cProcessorName ?? task.c4cProcessorName
+
+      const message = currentStatus === 'AMBIGUOUS'
+        ? 'Task updated, but processor is still ambiguous. Provide the full name and call updateTaskDraft again.'
+        : currentStatus === 'INVALID'
+          ? 'Task updated, but processor could not be resolved. Provide a correct name and call updateTaskDraft again.'
+          : 'Task draft updated.'
+      return ok('TASK_UPDATED', message, result)
+    })
+
+    this.on('removeTaskDraft', async (req) => {
+      const { taskId } = req.data
+      const { session, draft } = await loadSessionWithVisit(req)
+      if (!session) return
+      if (!draft) return fail('NO_VISIT_SELECTED', 'Call findVisit and selectVisit first.')
+      if (!['VISIT_SELECTED', 'PREVIEW'].includes(session.status)) {
+        return fail('SESSION_STATE_INVALID', 'Tasks cannot be removed in the current session state.')
+      }
+      if (!taskId) return fail('TASK_ID_REQUIRED', 'Provide the taskId from addTaskDraft.')
+      const task = await SELECT.one.from(TaskDrafts).where({ ID: taskId, visitDraft_ID: draft.ID })
+      if (!task) return fail('TASK_NOT_FOUND', 'Task draft not found in this session.')
+
+      await DELETE.from(TaskDrafts).where({ ID: taskId })
+      await bumpDraft(session, draft)
+      return ok('TASK_REMOVED', 'Task draft removed.', { taskId })
+    })
 
     return super.init()
   }

@@ -108,11 +108,3 @@ describe('Phase 1 – sessions', () => {
   })
 })
 
-describe('Phase 1 – placeholders are explicit', () => {
-  it('tools of later phases fail with 501 instead of pretending to work', async () => {
-    const res = await call(alice, 'startSession', { timeZone: 'Europe/Berlin' })
-    const { sessionId } = JSON.parse(res.data)
-    await rejects(call(alice, 'addTaskDraft', { sessionId }), 501, 'NOT_IMPLEMENTED: addTaskDraft')
-    await rejects(call(alice, 'updateTaskDraft', { sessionId }), 501, 'NOT_IMPLEMENTED: updateTaskDraft')
-  })
-})
