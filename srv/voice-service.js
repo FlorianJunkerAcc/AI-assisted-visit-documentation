@@ -357,8 +357,8 @@ export default class VoiceAssistantService extends cds.ApplicationService {
       const visitDateStr = formatLocalDate(session.timeZone, new Date(draft.c4cPlannedStart))
 
       const taskLines = tasks.map((t, i) => isDE
-        ? `  Aufgabe ${i + 1}: ${t.proposedSubject}${t.proposedProcessorName ? ` (Zuständig: ${t.proposedProcessorName})` : ''}`
-        : `  Task ${i + 1}: ${t.proposedSubject}${t.proposedProcessorName ? ` (Assigned to: ${t.proposedProcessorName})` : ''}`)
+        ? `  Aufgabe ${i + 1}: ${t.proposedSubject}${t.c4cProcessorName ? ` (Zuständig: ${t.c4cProcessorName})` : ''}`
+        : `  Task ${i + 1}: ${t.proposedSubject}${t.c4cProcessorName ? ` (Assigned to: ${t.c4cProcessorName})` : ''}`)
 
       let previewText
       if (isDE) {

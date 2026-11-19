@@ -245,7 +245,7 @@ describe('Phase 4 – removeTaskDraft', () => {
 
     const { TaskDrafts } = cds.entities('voice')
     const task = await SELECT.one.from(TaskDrafts).where({ ID: taskId })
-    assert.equal(task, null, 'task must be deleted from DB')
+    assert.ok(!task, 'task must be deleted from DB')
   })
 
   it('rejects an unknown taskId', async () => {
