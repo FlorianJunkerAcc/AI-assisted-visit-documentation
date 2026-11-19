@@ -1,6 +1,6 @@
 # Übergabe: Voice-Assistent zur Visit-Dokumentation (SAP CAP + SAP Sales Cloud V1)
 
-Stand: 17.11.2026. Phase 1 ist fertig und getestet. Phase 2 ist geschrieben, aber noch nicht getestet.
+Stand: 19.11.2026. Phase 1 ist fertig und getestet. Phase 2 ist geschrieben, aber noch nicht in BAS ausgeführt. Phase 3 ist geschrieben, aber noch nicht ausgeführt.
 
 ## 1. Ziel und verbindliche Regeln
 
@@ -65,13 +65,14 @@ Die Quellen liegen in `docs/c4c-metadata/`, die Konstanten in `srv/lib/c4c-codes
 | `package.json` | CAP 10 (ESM). Abhängigkeiten: `@cap-js/sqlite` (Laufzeit, `:memory:`), `@cap-js/cds-test` (dev). `cds.requires.c4c` ist ein odata-v2-Remote-Service auf die Destination. Mock-User für die Entwicklung: alice und carol mit Rolle `VisitDocumenter`, bob ohne Rolle. `cds.voice` enthält Konfiguration (Aufbewahrung 7 Tage, AI-Core-Modell, Resource Group). `@cap-js/hana` wurde entfernt. |
 | `db/schema.cds` | VoiceSessions, TranscriptEntries, VisitDrafts, TaskDrafts, CommitConfirmations, CommitOperations (Idempotenz, eindeutiger `idempotencyKey`) und AuditLog (nur Metadaten). Konvention: `c4c*` = von CAP gegen C4C geprüft, `proposed*` = Vorschlag der KI. |
 | `srv/voice-service.cds` | `VoiceAssistantService`, `@protocol:'none'` (nicht über HTTP erreichbar), `@requires:'VisitDocumenter'`. Alle Tools geben `ToolResult {ok, code, message, data(JSON)}` zurück. |
-| `srv/voice-service.js` | Umgesetzt: startSession (mit Mitarbeiter-Zuordnung), cancelSession, findVisit, selectVisit, getVisitContext, resolveEmployee, Besitzprüfung der Sitzung, Audit. **Noch 501:** updateVisitDraft, addTaskDraft, updateTaskDraft, removeTaskDraft, prepareCommitPreview, confirmCommit. |
+| `srv/voice-service.js` | Umgesetzt: startSession (mit Mitarbeiter-Zuordnung), cancelSession, findVisit, selectVisit, getVisitContext, resolveEmployee, updateVisitDraft (Zusammenfassung + Endzeit mit Validierung, Hash-Invalidierung), prepareCommitPreview (SHA-256-Hash, Vorlese-Text DE/EN, CommitConfirmations), confirmCommit (Hash-Prüfung, Zustimmungs-Check via Regex, Audit), Besitzprüfung der Sitzung, Audit. **Noch 501:** addTaskDraft, updateTaskDraft, removeTaskDraft. |
 | `srv/lib/c4c-client.js` | einzige Stelle mit C4C-Abfragen. `setTransport()` ist die Test-Schnittstelle. Owner/Organizer-Abfrage in zwei Queries, Prüfung auf aktive Mitarbeiter. |
 | `srv/lib/c4c-codes.js` | alle bestätigten Code-Werte mit Quellenangabe |
 | `srv/lib/time.js` | Tagesgrenzen in der Zeitzone (inklusive Zeitumstellung), OData-Datumswerte |
 | `srv/lib/validation.js`, `srv/lib/tool-result.js` | Eingabeprüfung und Ergebnisformat |
 | `test/phase1-foundation.test.js` | 9 Tests, **grün in BAS** |
-| `test/phase2-c4c-read.test.js` | ca. 20 Tests, **noch nicht ausgeführt** |
+| `test/phase2-c4c-read.test.js` | ca. 20 Tests, **noch nicht in BAS ausgeführt** |
+| `test/phase3-draft.test.js` | ca. 15 Tests, **noch nicht ausgeführt** |
 | `test/mocks/c4c-mock.js` | C4C-Mock im Speicher (eq/ge/lt, lehnt `or` ab, Antworten in OData-V2-Form) |
 | `spikes/aicore-realtime/` | erfolgreicher Spike zu AI Core Realtime, Ergebnisse in der README. Nutzt `@sap-ai-sdk/openai/realtime` (`SapOpenAiRealtimeWs.createClient('gpt-realtime')`, experimentell, nur Node). Ergebnisse: Verbindung ca. 800 ms, erster Ton 460–900 ms, Tool-Calls, Server-VAD, `whisper-1` und OOB-Transkription funktionieren. `gpt-4o-*-transcribe` liefert `DeploymentNotFound`. |
 | `docs/c4c-metadata/` | bestätigte Metadaten-Ausschnitte, Code-Listen und Beispiel-GET (bereinigt) |
@@ -80,12 +81,11 @@ Die Quellen liegen in `docs/c4c-metadata/`, die Konstanten in `srv/lib/c4c-codes
 
 ## 5. Was als Nächstes offen ist
 
-1. **Phase-2-Tests in BAS ausführen** (`git pull`, `npm test`) und Fehler beheben.
+1. **Phase-2- und Phase-3-Tests in BAS ausführen** (`git pull`, `npm test`) und Fehler beheben.
 2. **Echter Lesetest gegen C4C** (Tenant `my347080`, technischer User). Dafür in BAS `npm add @sap-cloud-sdk/http-client` (Voraussetzung für CAP-Remote-Services) und eine Anbindung an die Destination, z. B. per `cds bind` oder lokaler Konfiguration ohne Commit. Zu prüfen: Antwortformat des Remote-Service (`d.results` oder bereits entpackt, `__metadata.etag` vorhanden?), URL-Kodierung der `$filter`-Werte, Groß-/Kleinschreibung der E-Mail.
-3. **Phase 3:** updateVisitDraft (Zusammenfassung, Endzeit mit Validierung), prepareCommitPreview (Vorlese-Text und SHA-256-Hash über den eingefrorenen Entwurf), confirmCommit (Hash-Prüfung und Prüfung der Zustimmung im Transkript).
-4. **Phase 4:** Task-Entwürfe (add/update/remove), dabei den Processor bei jeder Änderung neu auflösen. Commit der Tasks mit CommitOperations (Idempotenz) und **Duplikatsprüfung in C4C vor dem Anlegen** (wegen SQLite). Ehrliche Meldung von Teilfehlern.
-5. **Phase 5:** PDFs mit `pdf-lib` (Standard-Fonts, Umlaute über WinAnsi), Anhänge, PATCH für Endzeit und Status mit frisch gelesenem ETag.
-6. **Phase 6:** WebSocket-Bridge in CAP (`ws`) zu AI Core mit `@sap-ai-sdk/openai`. Dazu Prompt (DE/EN, Datenschutz-Hinweis beim Start), Tool-Definitionen für die KI, Transkripte in `TranscriptEntries`, Unterbrechen (Barge-in).
+3. **Phase 4:** Task-Entwürfe (add/update/remove), dabei den Processor bei jeder Änderung neu auflösen. Commit der Tasks mit CommitOperations (Idempotenz) und **Duplikatsprüfung in C4C vor dem Anlegen** (wegen SQLite). Ehrliche Meldung von Teilfehlern.
+4. **Phase 5:** PDFs mit `pdf-lib` (Standard-Fonts, Umlaute über WinAnsi), Anhänge, PATCH für Endzeit und Status mit frisch gelesenem ETag. Commit-Runner in `confirmCommit` (CommitOperations, Idempotenz).
+5. **Phase 6:** WebSocket-Bridge in CAP (`ws`) zu AI Core mit `@sap-ai-sdk/openai`. Dazu Prompt (DE/EN, Datenschutz-Hinweis beim Start), Tool-Definitionen für die KI, Transkripte in `TranscriptEntries`, Unterbrechen (Barge-in).
 7. **Phase 7:** Mikrofon-UI mit den Zuständen hören / denken / sprechen, Aufnahme-Anzeige, Stopp, Erfolg/Fehler. Besonderheiten auf iOS: HTTPS, Start erst nach Tippen.
 8. **Phase 8:** Ende-zu-Ende-Tests und echter Lauf mit dem User. Als Test-Processor wird immer der User selbst verwendet.
 9. **Phase 9:** `mta.yaml` (App Router, XSUAA, Destination, AI-Core-Binding, HDB/HDI entfernen, 1 Instanz), `xs-security.json`, `@sap/xssec`, Löschjob für abgelaufene Sitzungen. Prüfen, wie die Login-E-Mail bei XSUAA ankommt (`req.user.attr.email`?). `package-lock.json` jeweils aus BAS committen.

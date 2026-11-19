@@ -1,8 +1,9 @@
 import cds from '@sap/cds'
+import { createHash } from 'node:crypto'
 import { ok, fail } from './lib/tool-result.js'
 import { isValidTimeZone, normaliseLanguage } from './lib/validation.js'
 import * as c4c from './lib/c4c-client.js'
-import { localDayRangeUtc, formatLocalTime, formatLocalDate } from './lib/time.js'
+import { localDayRangeUtc, formatLocalTime, formatLocalDate, zonedTimeToUtc, localDate } from './lib/time.js'
 
 const LOG = cds.log('voice')
 const { SELECT, INSERT, UPDATE } = cds.ql
@@ -13,17 +14,14 @@ const FINAL_STATES = ['COMPLETED', 'PARTIAL_FAILURE', 'FAILED', 'CANCELLED', 'NO
 // Tools that are defined in the service model but not implemented yet.
 // They fail explicitly instead of pretending to work.
 const NOT_YET_IMPLEMENTED = {
-  updateVisitDraft: 3,
   addTaskDraft: 4,
   updateTaskDraft: 4,
-  removeTaskDraft: 4,
-  prepareCommitPreview: 3,
-  confirmCommit: 3
+  removeTaskDraft: 4
 }
 
 export default class VoiceAssistantService extends cds.ApplicationService {
   init () {
-    const { VoiceSessions, VisitDrafts, AuditLog } = cds.entities('voice')
+    const { VoiceSessions, VisitDrafts, TaskDrafts, CommitConfirmations, AuditLog } = cds.entities('voice')
     const retentionDays = cds.env.voice?.sessionRetentionDays ?? 7
 
     // --- helpers ------------------------------------------------------------------------------
@@ -223,6 +221,168 @@ export default class VoiceAssistantService extends cds.ApplicationService {
       if (!employees.length) return fail('EMPLOYEE_NOT_FOUND', 'No active employee with this name. Ask the user for the full name or another colleague.', { matches })
       if (employees.length > 1) return ok('AMBIGUOUS', 'Several active employees match. Ask the user which one is meant (e.g. by last name). Never guess.', { matches })
       return ok('EMPLOYEE_FOUND', 'Exactly one active employee matches.', { matches })
+    })
+
+    // --- draft (phase 3) -------------------------------------------------------------------------
+
+    /** True iff the utterance is an unambiguous affirmation in German or English. */
+    const isAffirmation = (utterance) => {
+      const text = String(utterance ?? '').toLowerCase().normalize('NFC').trim()
+      if (!text) return false
+      if (/\b(nein|nicht|falsch|stopp|stop|abbrechen|cancel|no\b|don'?t|warte|wait|halt)\b/.test(text)) return false
+      return /\b(ja\b|jep|jo\b|jup|genau|stimmt|richtig|korrekt|einverstanden|bestätig|okay|ok\b|super|perfekt|absolut|natürlich|yes|yeah|yep|yup|correct|right|confirm|perfect|good)\b/.test(text)
+    }
+
+    this.on('updateVisitDraft', async (req) => {
+      const { sessionId, summary, actualEndTime, usePlannedEnd } = req.data
+      const { session, draft } = await loadSessionWithVisit(req)
+      if (!session) return
+      if (!draft) return fail('NO_VISIT_SELECTED', 'Call findVisit and selectVisit first.')
+      if (!['VISIT_SELECTED', 'PREVIEW'].includes(session.status)) {
+        return fail('SESSION_STATE_INVALID', 'The draft cannot be updated in the current session state.')
+      }
+      if (actualEndTime && usePlannedEnd) {
+        return fail('CONFLICTING_END_PARAMS', 'Provide either actualEndTime or usePlannedEnd, not both.')
+      }
+
+      const updates = {}
+      if (summary !== undefined && summary !== null) updates.proposedSummary = summary
+
+      if (usePlannedEnd) {
+        if (!draft.c4cPlannedEnd) return fail('NO_PLANNED_END', 'The Visit has no planned end time.')
+        updates.proposedActualEnd = draft.c4cPlannedEnd
+        updates.actualEndSource = 'PLANNED_FALLBACK'
+      } else if (actualEndTime) {
+        const m = /^(\d{1,2}):(\d{2})$/.exec(String(actualEndTime).trim())
+        if (!m) return fail('INVALID_TIME_FORMAT', 'actualEndTime must be in HH:mm format, e.g. "14:30".')
+        const hh = Number(m[1])
+        const mm = Number(m[2])
+        if (hh > 23 || mm > 59) return fail('INVALID_TIME_FORMAT', 'actualEndTime is not a valid time.')
+        const visitStart = new Date(draft.c4cPlannedStart)
+        if (isNaN(visitStart)) return fail('NO_PLANNED_START', 'The Visit has no planned start time.')
+        const { y, m: month, d } = localDate(session.timeZone, visitStart)
+        const actualEndUtc = zonedTimeToUtc(session.timeZone, y, month, d, hh, mm)
+        if (actualEndUtc > new Date()) {
+          return fail('ACTUAL_END_IN_FUTURE', 'The stated end time is in the future. Ask the user again or use the planned end time.')
+        }
+        updates.proposedActualEnd = actualEndUtc.toISOString()
+        updates.actualEndSource = 'USER_STATED'
+      }
+
+      updates.version = (draft.version ?? 1) + 1
+
+      if (session.status === 'PREVIEW') {
+        await UPDATE(CommitConfirmations).with({ status: 'SUPERSEDED' })
+          .where({ session_ID: sessionId, status: 'PENDING' })
+        await UPDATE(VoiceSessions, session.ID).with({ status: 'VISIT_SELECTED' })
+      }
+
+      await UPDATE(VisitDrafts, draft.ID).with(updates)
+      return ok('VISIT_DRAFT_UPDATED', 'Draft updated. Call prepareCommitPreview when ready to save.')
+    })
+
+    this.on('prepareCommitPreview', async (req) => {
+      const { session, draft } = await loadSessionWithVisit(req)
+      if (!session) return
+      if (!draft) return fail('NO_VISIT_SELECTED', 'Call findVisit and selectVisit first.')
+      if (!['VISIT_SELECTED', 'PREVIEW'].includes(session.status)) {
+        return fail('SESSION_STATE_INVALID', 'Cannot prepare preview in the current session state.')
+      }
+      if (!draft.proposedSummary?.trim()) {
+        return fail('SUMMARY_MISSING', 'The visit summary is missing. Ask the user what was discussed, then call updateVisitDraft first.')
+      }
+      const effectiveEnd = draft.proposedActualEnd ?? draft.c4cPlannedEnd
+      if (!effectiveEnd) {
+        return fail('END_TIME_MISSING', 'The end time is missing. Ask the user for the actual end time, or call updateVisitDraft with usePlannedEnd:true.')
+      }
+
+      const tasks = await SELECT.from(TaskDrafts).where({ visitDraft_ID: draft.ID }).orderBy('position')
+
+      // Hash over the frozen draft content – any change to the draft produces a different hash.
+      const frozen = JSON.stringify({
+        sessionId: session.ID,
+        draftVersion: draft.version ?? 1,
+        visitObjectID: draft.c4cVisitObjectID,
+        proposedSummary: draft.proposedSummary ?? '',
+        proposedActualEnd: effectiveEnd ?? '',
+        actualEndSource: draft.actualEndSource ?? '',
+        tasks: tasks.map(t => ({
+          id: t.ID,
+          subject: t.proposedSubject ?? '',
+          description: t.proposedDescription ?? '',
+          dueDate: t.proposedDueDate ?? '',
+          processorUUID: t.c4cProcessorUUID ?? ''
+        }))
+      })
+      const previewHash = createHash('sha256').update(frozen).digest('hex')
+
+      const isDE = session.language === 'de'
+      const startTimeStr = formatLocalTime(session.timeZone, new Date(draft.c4cPlannedStart))
+      const endTimeStr = formatLocalTime(session.timeZone, new Date(effectiveEnd))
+      const visitDateStr = formatLocalDate(session.timeZone, new Date(draft.c4cPlannedStart))
+
+      const taskLines = tasks.map((t, i) => isDE
+        ? `  Aufgabe ${i + 1}: ${t.proposedSubject}${t.proposedProcessorName ? ` (Zuständig: ${t.proposedProcessorName})` : ''}`
+        : `  Task ${i + 1}: ${t.proposedSubject}${t.proposedProcessorName ? ` (Assigned to: ${t.proposedProcessorName})` : ''}`)
+
+      let previewText
+      if (isDE) {
+        previewText = `Ich speichere jetzt folgendes in SAP Sales Cloud:\n\nBesuch bei ${draft.c4cAccountName} am ${visitDateStr} von ${startTimeStr} bis ${endTimeStr}.\n\nZusammenfassung: ${draft.proposedSummary}`
+        if (taskLines.length) previewText += '\n\nFolge-Aufgaben:\n' + taskLines.join('\n')
+        previewText += '\n\nBitte bestätigen Sie.'
+      } else {
+        previewText = `I will now save the following to SAP Sales Cloud:\n\nVisit at ${draft.c4cAccountName} on ${visitDateStr} from ${startTimeStr} to ${endTimeStr}.\n\nSummary: ${draft.proposedSummary}`
+        if (taskLines.length) previewText += '\n\nFollow-up tasks:\n' + taskLines.join('\n')
+        previewText += '\n\nPlease confirm.'
+      }
+
+      await UPDATE(CommitConfirmations).with({ status: 'SUPERSEDED' })
+        .where({ session_ID: session.ID, status: 'PENDING' })
+
+      await INSERT.into(CommitConfirmations).entries({
+        ID: cds.utils.uuid(),
+        session_ID: session.ID,
+        draftVersion: draft.version ?? 1,
+        previewHash,
+        previewText,
+        status: 'PENDING'
+      })
+
+      await UPDATE(VoiceSessions, session.ID).with({ status: 'PREVIEW' })
+
+      return ok('COMMIT_PREVIEW', 'Read this preview text to the user verbatim, then ask for explicit yes/no confirmation. Pass the hash to confirmCommit together with the user\'s utterance.', {
+        previewHash,
+        previewText
+      })
+    })
+
+    this.on('confirmCommit', async (req) => {
+      const { sessionId, previewHash, userUtterance } = req.data
+      const session = await this.loadOwnSession(req, sessionId)
+      if (!session) return
+      if (session.status !== 'PREVIEW') {
+        return fail('NOT_IN_PREVIEW', 'No commit preview is active. Call prepareCommitPreview first.')
+      }
+
+      const confirmation = await SELECT.one.from(CommitConfirmations)
+        .where({ session_ID: sessionId, previewHash, status: 'PENDING' })
+      if (!confirmation) {
+        return fail('HASH_MISMATCH', 'The preview hash does not match the current preview. The draft may have changed. Call prepareCommitPreview again to get a fresh hash.')
+      }
+
+      if (!isAffirmation(userUtterance)) {
+        return fail('NOT_CONFIRMED', 'The user utterance was not a clear confirmation. Ask again: "Möchten Sie speichern? Bitte antworten Sie mit Ja."')
+      }
+
+      await UPDATE(CommitConfirmations, confirmation.ID).with({
+        status: 'CONFIRMED',
+        confirmedAt: new Date().toISOString(),
+        confirmationUtterance: String(userUtterance ?? '').slice(0, 500)
+      })
+      await UPDATE(VoiceSessions, session.ID).with({ status: 'COMMITTING' })
+      await audit(req, 'COMMIT_CONFIRMED', { sessionId: session.ID, outcome: 'OK' })
+
+      return ok('COMMIT_CONFIRMED', 'Confirmation accepted. The visit data will now be saved to SAP Sales Cloud. This may take a few seconds – do not hang up.')
     })
 
     // --- not yet implemented tools --------------------------------------------------------------
