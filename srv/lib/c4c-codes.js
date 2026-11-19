@@ -7,6 +7,7 @@ export const ENTITY_SETS = {
   visitAttachment: 'VisitAttachmentCollection', // VisitAttachment.xml
   employee: 'EmployeeCollection', // Employee.xml (confirmed by GET)
   task: 'TasksCollection', // Tasks.sample.json (confirmed by GET)
+  taskText: 'TasksTextCollection', // TasksTextCollection (confirmed by field mapping)
   taskBtdReference: 'TasksBTDReferenceCollection' // TasksBTDReference.xml (confirmed by GET)
 }
 

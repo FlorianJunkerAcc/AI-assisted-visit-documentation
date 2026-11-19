@@ -3,7 +3,9 @@ import { createHash } from 'node:crypto'
 import { ok, fail } from './lib/tool-result.js'
 import { isValidTimeZone, normaliseLanguage } from './lib/validation.js'
 import * as c4c from './lib/c4c-client.js'
+import { VISIT_ATTACHMENT, VISIT_STATUS } from './lib/c4c-codes.js'
 import { localDayRangeUtc, formatLocalTime, formatLocalDate, zonedTimeToUtc, localDate } from './lib/time.js'
+import { generateSummaryPdf, generateTranscriptPdf } from './lib/pdf-generator.js'
 
 const LOG = cds.log('voice')
 const { SELECT, INSERT, UPDATE, DELETE } = cds.ql
@@ -13,7 +15,7 @@ const FINAL_STATES = ['COMPLETED', 'PARTIAL_FAILURE', 'FAILED', 'CANCELLED', 'NO
 
 export default class VoiceAssistantService extends cds.ApplicationService {
   init () {
-    const { VoiceSessions, VisitDrafts, TaskDrafts, CommitConfirmations, AuditLog } = cds.entities('voice')
+    const { VoiceSessions, VisitDrafts, TaskDrafts, CommitConfirmations, CommitOperations, TranscriptEntries, AuditLog } = cds.entities('voice')
     const retentionDays = cds.env.voice?.sessionRetentionDays ?? 7
 
     // --- helpers ------------------------------------------------------------------------------
@@ -391,6 +393,120 @@ export default class VoiceAssistantService extends cds.ApplicationService {
       })
     })
 
+    // --- commit execution (phase 5) -------------------------------------------------------------
+
+    /**
+     * Executes all C4C write operations in sequence using idempotency keys.
+     * Returns { finalStatus, visitObjectID, errors }.
+     * Does NOT update VoiceSessions.status – the caller (confirmCommit) does that.
+     */
+    const runCommit = async (session, draft, confirmation, tasks, entries) => {
+      const errors = []
+      let seq = 0
+
+      const runOp = async (kind, idempotencyKey, taskDraftId, fn) => {
+        // Idempotency guard: skip if this op already succeeded (safe to retry)
+        const existing = await SELECT.one.from(CommitOperations).where({ idempotencyKey })
+        if (existing?.status === 'SUCCEEDED' || existing?.status === 'SKIPPED_EXISTING') {
+          return { ok: true, c4cObjectID: existing.c4cObjectID, c4cID: existing.c4cID }
+        }
+
+        seq++
+        let opId
+        if (existing) {
+          opId = existing.ID
+          await UPDATE(CommitOperations, opId).with({ status: 'IN_PROGRESS', attempts: (existing.attempts ?? 0) + 1, seq })
+        } else {
+          opId = cds.utils.uuid()
+          await INSERT.into(CommitOperations).entries({
+            ID: opId,
+            session_ID: session.ID,
+            confirmation_ID: confirmation.ID,
+            taskDraft_ID: taskDraftId ?? null,
+            seq,
+            kind,
+            idempotencyKey,
+            status: 'IN_PROGRESS',
+            attempts: 1
+          })
+        }
+
+        try {
+          const result = await fn()
+          await UPDATE(CommitOperations, opId).with({
+            status: 'SUCCEEDED',
+            c4cObjectID: result?.c4cObjectID ?? null,
+            c4cID: result?.c4cID ?? null,
+            lastError: null
+          })
+          return { ok: true, c4cObjectID: result?.c4cObjectID, c4cID: result?.c4cID }
+        } catch (err) {
+          const lastError = String(err?.message ?? err).slice(0, 1000)
+          LOG.error(`commit op ${kind} failed`, { lastError })
+          await UPDATE(CommitOperations, opId).with({ status: 'FAILED', lastError })
+          errors.push({ kind, idempotencyKey, lastError })
+          return { ok: false }
+        }
+      }
+
+      await runOp('ATTACH_SUMMARY_PDF', `ATTACH_SUMMARY_PDF:${confirmation.ID}`, null, async () => {
+        const pdfBytes = await generateSummaryPdf(draft, tasks, session.timeZone)
+        await c4c.createVisitAttachment({
+          visitObjectID: draft.c4cVisitObjectID,
+          typeCode: VISIT_ATTACHMENT.TYPE_SUMMARY,
+          name: 'Besuchszusammenfassung.pdf',
+          pdfBytes
+        })
+      })
+
+      await runOp('ATTACH_TRANSCRIPT_PDF', `ATTACH_TRANSCRIPT_PDF:${confirmation.ID}`, null, async () => {
+        const pdfBytes = await generateTranscriptPdf(draft, entries, session.timeZone)
+        await c4c.createVisitAttachment({
+          visitObjectID: draft.c4cVisitObjectID,
+          typeCode: VISIT_ATTACHMENT.TYPE_STANDARD,
+          name: 'Gespraechsprotokoll.pdf',
+          pdfBytes
+        })
+      })
+
+      for (const task of tasks) {
+        const taskResult = await runOp('CREATE_TASK', `CREATE_TASK:${task.ID}`, task.ID, async () => {
+          const result = await c4c.createTask({
+            subject: task.proposedSubject,
+            dueDateISO: task.proposedDueDate ?? null,
+            accountUUID: draft.c4cAccountUUID,
+            ownerUUID: session.c4cEmployeeUUID,
+            processorUUID: task.c4cProcessorUUID,
+            processorPartyID: task.c4cProcessorBPID ?? null
+          })
+          return { c4cObjectID: result.objectID, c4cID: result.id }
+        })
+
+        if (taskResult.ok && taskResult.c4cObjectID) {
+          if (task.proposedDescription?.trim()) {
+            await runOp('CREATE_TASK_TEXT', `CREATE_TASK_TEXT:${task.ID}`, task.ID,
+              () => c4c.createTaskDescription(taskResult.c4cObjectID, task.proposedDescription)
+            )
+          }
+          await runOp('CREATE_TASK_LINK', `CREATE_TASK_LINK:${task.ID}`, task.ID,
+            () => c4c.createTaskVisitLink(taskResult.c4cObjectID, draft.c4cVisitID)
+          )
+        }
+      }
+
+      await runOp('UPDATE_VISIT_END', `UPDATE_VISIT_END:${confirmation.ID}`, null,
+        () => c4c.patchVisit(draft.c4cVisitObjectID, draft.c4cVisitETag, {
+          actualEnd: draft.proposedActualEnd ?? draft.c4cPlannedEnd
+        })
+      )
+
+      await runOp('UPDATE_VISIT_STATUS', `UPDATE_VISIT_STATUS:${confirmation.ID}`, null,
+        () => c4c.patchVisit(draft.c4cVisitObjectID, null, { status: VISIT_STATUS.COMPLETED })
+      )
+
+      return { finalStatus: errors.length === 0 ? 'COMPLETED' : 'PARTIAL_FAILURE', visitObjectID: draft.c4cVisitObjectID, errors }
+    }
+
     this.on('confirmCommit', async (req) => {
       const { sessionId, previewHash, userUtterance } = req.data
       const session = await this.loadOwnSession(req, sessionId)
@@ -417,7 +533,19 @@ export default class VoiceAssistantService extends cds.ApplicationService {
       await UPDATE(VoiceSessions, session.ID).with({ status: 'COMMITTING' })
       await audit(req, 'COMMIT_CONFIRMED', { sessionId: session.ID, outcome: 'OK' })
 
-      return ok('COMMIT_CONFIRMED', 'Confirmation accepted. The visit data will now be saved to SAP Sales Cloud. This may take a few seconds – do not hang up.')
+      const draft = await SELECT.one.from(VisitDrafts).where({ session_ID: session.ID })
+      const tasks = await SELECT.from(TaskDrafts).where({ visitDraft_ID: draft.ID }).orderBy('position')
+      const entries = await SELECT.from(TranscriptEntries).where({ session_ID: session.ID }).orderBy('seq')
+
+      const { finalStatus, visitObjectID, errors } = await runCommit(session, draft, confirmation, tasks, entries)
+
+      await UPDATE(VoiceSessions, session.ID).with({ status: finalStatus })
+      await audit(req, `COMMIT_${finalStatus}`, { sessionId: session.ID, visitObjectID, outcome: finalStatus })
+
+      if (finalStatus === 'COMPLETED') {
+        return ok('COMMIT_COMPLETED', 'All data has been saved to SAP Sales Cloud successfully.')
+      }
+      return ok('COMMIT_PARTIAL_FAILURE', 'Some operations failed. Please check SAP Sales Cloud manually.', { errors })
     })
 
     // --- task drafts (phase 4) -------------------------------------------------------------------

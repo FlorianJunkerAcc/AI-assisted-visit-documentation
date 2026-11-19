@@ -9,11 +9,16 @@ const odataDate = (d) => (d ? `/Date(${new Date(d).getTime()})/` : null)
 
 export const fixtures = { visits: [], employees: [] }
 export const calls = []
+export const created = { tasks: [], taskTexts: [], taskReferences: [], attachments: [] }
 
 export function resetFixtures () {
   fixtures.visits = []
   fixtures.employees = []
   calls.length = 0
+  created.tasks = []
+  created.taskTexts = []
+  created.taskReferences = []
+  created.attachments = []
 }
 
 let objCounter = 0
@@ -104,26 +109,64 @@ const sets = {
   EmployeeCollection: () => fixtures.employees
 }
 
-async function mockTransport ({ method, path }) {
+async function mockTransport ({ method, path, data }) {
   calls.push({ method, path })
-  if (method !== 'GET') throw Object.assign(new Error(`mock: ${method} not supported yet`), { status: 405 })
 
   const [resource, query = ''] = path.replace(/^\//, '').split('?')
-  const params = Object.fromEntries(query.split('&').filter(Boolean).map(p => {
-    const i = p.indexOf('=')
-    return [p.slice(0, i), decodeURIComponent(p.slice(i + 1))]
-  }))
 
-  const byKey = /^(\w+)\('([0-9A-Fa-f]+)'\)$/.exec(resource)
-  if (byKey) {
-    const row = sets[byKey[1]]?.().find(r => r.ObjectID === byKey[2])
-    if (!row) throw Object.assign(new Error('mock: not found'), { status: 404 })
-    return { d: row }
+  if (method === 'GET') {
+    const params = Object.fromEntries(query.split('&').filter(Boolean).map(p => {
+      const i = p.indexOf('=')
+      return [p.slice(0, i), decodeURIComponent(p.slice(i + 1))]
+    }))
+
+    const byKey = /^(\w+)\('([0-9A-Fa-f]+)'\)$/.exec(resource)
+    if (byKey) {
+      const row = sets[byKey[1]]?.().find(r => r.ObjectID === byKey[2])
+      if (!row) throw Object.assign(new Error('mock: not found'), { status: 404 })
+      return { d: row }
+    }
+    const rows = sets[resource]?.()
+    if (!rows) throw Object.assign(new Error(`mock: unknown resource ${resource}`), { status: 404 })
+    const filtered = params.$filter ? rows.filter(compileFilter(params.$filter)) : rows
+    return { d: { results: filtered.slice(0, Number(params.$top ?? 1000)) } }
   }
-  const rows = sets[resource]?.()
-  if (!rows) throw Object.assign(new Error(`mock: unknown resource ${resource}`), { status: 404 })
-  const filtered = params.$filter ? rows.filter(compileFilter(params.$filter)) : rows
-  return { d: { results: filtered.slice(0, Number(params.$top ?? 1000)) } }
+
+  if (method === 'PATCH') {
+    const byKey = /^(\w+)\('([0-9A-Fa-f]+)'\)$/.exec(resource)
+    if (!byKey) throw Object.assign(new Error('mock: PATCH requires a key'), { status: 400 })
+    const rows = sets[byKey[1]]?.()
+    if (!rows) throw Object.assign(new Error(`mock: unknown resource ${byKey[1]}`), { status: 404 })
+    const row = rows.find(r => r.ObjectID === byKey[2])
+    if (!row) throw Object.assign(new Error('mock: not found'), { status: 404 })
+    Object.assign(row, data)
+    return {}
+  }
+
+  if (method === 'POST') {
+    if (resource === 'TasksCollection') {
+      const objId = objectId()
+      const task = { ObjectID: objId, ID: `T${created.tasks.length + 1}`, ...data }
+      created.tasks.push(task)
+      return { d: { ObjectID: objId, ID: task.ID } }
+    }
+    if (resource === 'TasksTextCollection') {
+      created.taskTexts.push({ ...data })
+      return {}
+    }
+    if (resource === 'TasksBTDReferenceCollection') {
+      created.taskReferences.push({ ...data })
+      return {}
+    }
+    if (resource === 'VisitAttachmentCollection') {
+      // Store only metadata – skip the base64 Binary to keep tests lean
+      created.attachments.push({ TypeCode: data?.TypeCode, Name: data?.Name, MimeType: data?.MimeType })
+      return {}
+    }
+    throw Object.assign(new Error(`mock: POST to ${resource} not supported`), { status: 405 })
+  }
+
+  throw Object.assign(new Error(`mock: ${method} not supported`), { status: 405 })
 }
 
 /** Installs the mock transport; returns a function that restores the previous one. */

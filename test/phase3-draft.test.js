@@ -204,15 +204,15 @@ describe('Phase 3 – prepareCommitPreview', () => {
 })
 
 describe('Phase 3 – confirmCommit', () => {
-  it('accepts a clear German affirmation and sets the session to COMMITTING', async () => {
+  it('accepts a clear German affirmation and sets the session to COMPLETED', async () => {
     const { sessionId, previewHash } = await previewSession()
     const res = await call(alice, 'confirmCommit', { sessionId, previewHash, userUtterance: 'Ja, bitte speichern.' })
     assert.equal(res.ok, true)
-    assert.equal(res.code, 'COMMIT_CONFIRMED')
+    assert.equal(res.code, 'COMMIT_COMPLETED')
 
     const { VoiceSessions, CommitConfirmations } = cds.entities('voice')
     const session = await SELECT.one.from(VoiceSessions).where({ ID: sessionId })
-    assert.equal(session.status, 'COMMITTING')
+    assert.equal(session.status, 'COMPLETED')
 
     const conf = await SELECT.one.from(CommitConfirmations).where({ session_ID: sessionId, previewHash })
     assert.equal(conf.status, 'CONFIRMED')
@@ -223,7 +223,7 @@ describe('Phase 3 – confirmCommit', () => {
   it('accepts a clear English affirmation', async () => {
     const { sessionId, previewHash } = await previewSession()
     const res = await call(alice, 'confirmCommit', { sessionId, previewHash, userUtterance: 'Yes, that is correct.' })
-    assert.equal(res.code, 'COMMIT_CONFIRMED')
+    assert.equal(res.code, 'COMMIT_COMPLETED')
   })
 
   it('rejects a negation ("Nein")', async () => {
@@ -307,6 +307,6 @@ describe('Phase 3 – confirmCommit', () => {
       previewHash: newHash,
       userUtterance: 'Genau, speichern.'
     })
-    assert.equal(confirmRes.code, 'COMMIT_CONFIRMED')
+    assert.equal(confirmRes.code, 'COMMIT_COMPLETED')
   })
 })

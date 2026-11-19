@@ -4,7 +4,8 @@
   "type": "module",
   "dependencies": {
     "@cap-js/sqlite": "^3",
-    "@sap/cds": "^10"
+    "@sap/cds": "^10",
+    "pdf-lib": "^1.17.1"
   },
   "devDependencies": {
     "@cap-js/cds-test": ">=0.3.0",
