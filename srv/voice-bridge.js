@@ -139,6 +139,13 @@ async function handleVoiceConnection (ws, userInfo) {
       aiClient = await SapOpenAiRealtimeWs.createClient(model)
     } catch (err) {
       LOG.error('AI Core connect failed', { message: err.message })
+      // In development (mocked auth) with no AI Core binding: stay connected in silent mode
+      // so the UI flow can be tested. Audio is accepted but no voice response comes back.
+      if (cds.env.requires?.auth?.kind === 'mocked') {
+        LOG.warn('AI Core unavailable in dev mode – session open without voice AI', { sessionId })
+        send({ type: 'ready', sessionId })
+        return
+      }
       send({ type: 'error', code: 'AICORE_UNAVAILABLE', message: 'Could not connect to AI Core.' })
       try { await callTool('cancelSession') } catch {}
       sessionId = null
