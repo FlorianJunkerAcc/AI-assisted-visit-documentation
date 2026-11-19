@@ -113,6 +113,6 @@ describe('Phase 1 – placeholders are explicit', () => {
     const res = await call(alice, 'startSession', { timeZone: 'Europe/Berlin' })
     const { sessionId } = JSON.parse(res.data)
     await rejects(call(alice, 'addTaskDraft', { sessionId }), 501, 'NOT_IMPLEMENTED: addTaskDraft')
-    await rejects(call(alice, 'confirmCommit', { sessionId, previewHash: 'x' }), 501, 'NOT_IMPLEMENTED: confirmCommit')
+    await rejects(call(alice, 'updateTaskDraft', { sessionId }), 501, 'NOT_IMPLEMENTED: updateTaskDraft')
   })
 })

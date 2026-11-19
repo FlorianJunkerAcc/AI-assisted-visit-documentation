@@ -252,7 +252,7 @@ export default class VoiceAssistantService extends cds.ApplicationService {
         if (!draft.c4cPlannedEnd) return fail('NO_PLANNED_END', 'The Visit has no planned end time.')
         updates.proposedActualEnd = draft.c4cPlannedEnd
         updates.actualEndSource = 'PLANNED_FALLBACK'
-      } else if (actualEndTime) {
+      } else if (actualEndTime != null) {
         const m = /^(\d{1,2}):(\d{2})$/.exec(String(actualEndTime).trim())
         if (!m) return fail('INVALID_TIME_FORMAT', 'actualEndTime must be in HH:mm format, e.g. "14:30".')
         const hh = Number(m[1])
