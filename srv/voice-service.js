@@ -61,7 +61,14 @@ export default class VoiceAssistantService extends cds.ApplicationService {
       try {
         employees = await c4c.findActiveEmployeesByEmail(userEmail)
       } catch {
-        return fail('C4C_UNAVAILABLE', 'SAP Sales Cloud is not reachable. Tell the user to try again later.')
+        // In development (mocked auth) with no destination binding: synthesise an employee
+        // so the conversation flow can be tested end-to-end without a real C4C connection.
+        if (cds.env.requires?.auth?.kind === 'mocked') {
+          LOG.warn('startSession: C4C unreachable in dev mode – using synthetic employee', { userEmail })
+          employees = [{ uuid: cds.utils.uuid(), businessPartnerID: '0000000000', name: req.user.id, email: userEmail }]
+        } else {
+          return fail('C4C_UNAVAILABLE', 'SAP Sales Cloud is not reachable. Tell the user to try again later.')
+        }
       }
       if (employees.length !== 1) {
         await audit(req, 'SESSION_REJECTED', { outcome: 'USER_NOT_MAPPED', details: `active employees for login e-mail: ${employees.length}` })
