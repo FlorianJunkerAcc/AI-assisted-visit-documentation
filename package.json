@@ -4,8 +4,10 @@
   "type": "module",
   "dependencies": {
     "@cap-js/sqlite": "^3",
+    "@sap-ai-sdk/openai": "^2.15.0",
     "@sap/cds": "^10",
-    "pdf-lib": "^1.17.1"
+    "pdf-lib": "^1.17.1",
+    "ws": "^8"
   },
   "devDependencies": {
     "@cap-js/cds-test": ">=0.3.0",
