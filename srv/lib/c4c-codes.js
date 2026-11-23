@@ -7,6 +7,7 @@ export const ENTITY_SETS = {
   visitAttachment: 'VisitAttachmentCollection', // VisitAttachment.xml
   employee: 'EmployeeCollection', // Employee.xml (confirmed by GET)
   task: 'TasksCollection', // Tasks.sample.json (confirmed by GET)
+  taskText: 'TasksTextCollection', // TasksText (POST unverified against live C4C, see HANDOVER §3)
   taskBtdReference: 'TasksBTDReferenceCollection' // TasksBTDReference.xml (confirmed by GET)
 }
 

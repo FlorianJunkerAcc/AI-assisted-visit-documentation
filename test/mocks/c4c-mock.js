@@ -1,18 +1,23 @@
 // In-memory C4C mock for tests. It emulates only the queries the app sends:
 //   GET /<EntitySet>?$filter=<clause> and <clause> ...   (eq, ge, lt; "or" is rejected like real C4C)
 //   GET /<EntitySet>('<ObjectID>')
+//   PATCH /<EntitySet>('<ObjectID>')                     (If-Match required, 412 on mismatch)
+//   POST /<EntitySet>                                    (creates row with generated ObjectID/ID)
 // Responses use the raw OData V2 shape { d: { results: [...] } } with "/Date(ms)/" values.
 // All names and e-mails are fictional.
 import { setTransport } from '../../srv/lib/c4c-client.js'
 
 const odataDate = (d) => (d ? `/Date(${new Date(d).getTime()})/` : null)
 
-export const fixtures = { visits: [], employees: [] }
+export const fixtures = { visits: [], employees: [], tasks: [], taskTexts: [], taskBtdRefs: [] }
 export const calls = []
 
 export function resetFixtures () {
   fixtures.visits = []
   fixtures.employees = []
+  fixtures.tasks = []
+  fixtures.taskTexts = []
+  fixtures.taskBtdRefs = []
   calls.length = 0
 }
 
@@ -101,29 +106,66 @@ function compileFilter (filter) {
 
 const sets = {
   VisitCollection: () => fixtures.visits,
-  EmployeeCollection: () => fixtures.employees
+  EmployeeCollection: () => fixtures.employees,
+  TasksCollection: () => fixtures.tasks,
+  TasksTextCollection: () => fixtures.taskTexts,
+  TasksBTDReferenceCollection: () => fixtures.taskBtdRefs
 }
 
-async function mockTransport ({ method, path }) {
-  calls.push({ method, path })
-  if (method !== 'GET') throw Object.assign(new Error(`mock: ${method} not supported yet`), { status: 405 })
+async function mockTransport ({ method, path, data, headers }) {
+  calls.push({ method, path, data, headers })
 
   const [resource, query = ''] = path.replace(/^\//, '').split('?')
-  const params = Object.fromEntries(query.split('&').filter(Boolean).map(p => {
-    const i = p.indexOf('=')
-    return [p.slice(0, i), decodeURIComponent(p.slice(i + 1))]
-  }))
 
+  // --- by-key operations (GET / PATCH) --------------------------------------------------------
   const byKey = /^(\w+)\('([0-9A-Fa-f]+)'\)$/.exec(resource)
   if (byKey) {
-    const row = sets[byKey[1]]?.().find(r => r.ObjectID === byKey[2])
+    const setName = byKey[1]
+    const id = byKey[2]
+    const rows = sets[setName]?.()
+    if (!rows) throw Object.assign(new Error(`mock: unknown resource ${setName}`), { status: 404 })
+    const row = rows.find(r => r.ObjectID === id)
     if (!row) throw Object.assign(new Error('mock: not found'), { status: 404 })
-    return { d: row }
+
+    if (method === 'PATCH') {
+      const ifMatch = headers?.['If-Match']
+      if (!ifMatch) throw Object.assign(new Error('mock: PATCH requires If-Match'), { status: 428 })
+      if (ifMatch !== '*' && row.__metadata?.etag && ifMatch !== row.__metadata.etag) {
+        throw Object.assign(new Error('mock: ETag mismatch'), { status: 412 })
+      }
+      Object.assign(row, data)
+      row.__metadata = { ...row.__metadata, etag: `W/"updated-${Date.now()}"` }
+      return {}
+    }
+    if (method === 'GET') return { d: row }
+    throw Object.assign(new Error(`mock: ${method} not supported for by-key access`), { status: 405 })
   }
+
+  // --- collection operations (GET / POST) -----------------------------------------------------
   const rows = sets[resource]?.()
   if (!rows) throw Object.assign(new Error(`mock: unknown resource ${resource}`), { status: 404 })
-  const filtered = params.$filter ? rows.filter(compileFilter(params.$filter)) : rows
-  return { d: { results: filtered.slice(0, Number(params.$top ?? 1000)) } }
+
+  if (method === 'POST') {
+    const newRow = {
+      __metadata: { etag: `W/"new-${Date.now()}"` },
+      ObjectID: objectId(),
+      ID: String(3000 + rows.length + 1),
+      ...data
+    }
+    rows.push(newRow)
+    return { d: newRow }
+  }
+
+  if (method === 'GET') {
+    const params = Object.fromEntries(query.split('&').filter(Boolean).map(p => {
+      const i = p.indexOf('=')
+      return [p.slice(0, i), decodeURIComponent(p.slice(i + 1))]
+    }))
+    const filtered = params.$filter ? rows.filter(compileFilter(params.$filter)) : rows
+    return { d: { results: filtered.slice(0, Number(params.$top ?? 1000)) } }
+  }
+
+  throw Object.assign(new Error(`mock: ${method} not supported`), { status: 405 })
 }
 
 /** Installs the mock transport; returns a function that restores the previous one. */

@@ -2,7 +2,7 @@
 // All C4C access goes through the CAP remote service "c4c" (BTP Destination SAP_Sales_Cloud_V1).
 // The AI never reaches this module directly – only VoiceAssistantService does.
 import cds from '@sap/cds'
-import { ENTITY_SETS, VISIT_STATUS } from './c4c-codes.js'
+import { ENTITY_SETS, VISIT_STATUS, TASK, TASK_BTD_REFERENCE } from './c4c-codes.js'
 import { dateTimeOffsetLiteral, parseODataDate } from './time.js'
 
 const LOG = cds.log('c4c')
@@ -132,6 +132,72 @@ export async function getVisit (objectID) {
     if (err.status === 404) return null
     throw err
   }
+}
+
+// --- Visit writes -----------------------------------------------------------------------------
+
+/** OData V2 datetime string for POST/PATCH bodies: "/Date(ms)/". */
+const odataDatetimeValue = (d) => (d ? `/Date(${new Date(d).getTime()})/` : null)
+
+/**
+ * PATCHes a Visit. Caller must supply a fresh ETag (re-read via getVisit first).
+ * fields: { actualEndDateTime?, status? }
+ */
+export async function patchVisit (objectID, etag, fields) {
+  const body = {}
+  if (fields.actualEndDateTime != null) body.ActualEndDateTime = odataDatetimeValue(fields.actualEndDateTime)
+  if (fields.status != null) body.Status = fields.status
+  await request('PATCH', `/${ENTITY_SETS.visit}('${objectID}')`, body, { 'If-Match': etag })
+}
+
+// --- Task writes ------------------------------------------------------------------------------
+
+/**
+ * Creates a Task. Returns the new ObjectID (string).
+ * processorPartyID = Employee.BusinessPartnerID (Tasks.ProcessorPartyID).
+ */
+export async function createTask ({ subject, dueDateTimeUtc, accountUUID, ownerUUID, processorUUID, processorPartyID }) {
+  const body = {
+    Subject: subject,
+    DocumentType: TASK.DOCUMENT_TYPE_ACTIVITY_TASK,
+    PriorityCode: TASK.PRIORITY_NORMAL,
+    AccountUUID: accountUUID,
+    OwnerUUID: ownerUUID,
+    ProcessorUUID: processorUUID,
+    ProcessorPartyID: processorPartyID ?? undefined
+  }
+  if (dueDateTimeUtc) {
+    body.DueDateTime = odataDatetimeValue(dueDateTimeUtc)
+    body.DueDatetimeZoneCode = TASK.TIME_ZONE_UTC
+  }
+  const res = await request('POST', `/${ENTITY_SETS.task}`, body)
+  const row = rowsOf(res)[0]
+  return row?.ObjectID ?? null
+}
+
+/**
+ * Creates a TaskText entry (body text for a Task).
+ * NOTE: direct POST to TasksTextCollection is unverified against live C4C (see HANDOVER §3).
+ */
+export async function createTaskText (taskObjectID, text) {
+  await request('POST', `/${ENTITY_SETS.taskText}`, {
+    ParentObjectID: taskObjectID,
+    TypeCode: TASK.TEXT_TYPE_BODY,
+    Text: text
+  })
+}
+
+/**
+ * Creates a BTD reference that links a Task to a Visit (Predecessor relation).
+ * visitID = Visit.ID (the readable number field, NOT ObjectID).
+ */
+export async function createTaskBtdReference (taskObjectID, visitID) {
+  await request('POST', `/${ENTITY_SETS.taskBtdReference}`, {
+    ParentObjectID: taskObjectID,
+    ID: visitID,
+    TypeCode: TASK_BTD_REFERENCE.TYPE_APPOINTMENT,
+    BTDRoleCode: TASK_BTD_REFERENCE.ROLE_PREDECESSOR
+  })
 }
 
 // --- Employee ---------------------------------------------------------------------------------

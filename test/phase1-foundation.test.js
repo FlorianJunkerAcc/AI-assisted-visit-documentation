@@ -109,10 +109,18 @@ describe('Phase 1 – sessions', () => {
 })
 
 describe('Phase 1 – placeholders are explicit', () => {
-  it('tools of later phases fail with 501 instead of pretending to work', async () => {
+  it('tools without a session fail with a meaningful error (not 501)', async () => {
     const res = await call(alice, 'startSession', { timeZone: 'Europe/Berlin' })
     const { sessionId } = JSON.parse(res.data)
-    await rejects(call(alice, 'addTaskDraft', { sessionId }), 501, 'NOT_IMPLEMENTED: addTaskDraft')
-    await rejects(call(alice, 'confirmCommit', { sessionId, previewHash: 'x' }), 501, 'NOT_IMPLEMENTED: confirmCommit')
+    // No visit selected yet → tools that need a visit draft report NO_VISIT_SELECTED, not 501
+    const r1 = await call(alice, 'addTaskDraft', { sessionId })
+    assert.equal(r1.code, 'NO_VISIT_SELECTED')
+    const r2 = await call(alice, 'updateVisitDraft', { sessionId, summary: 'x', usePlannedEnd: true })
+    assert.equal(r2.code, 'NO_VISIT_SELECTED')
+    const r3 = await call(alice, 'prepareCommitPreview', { sessionId })
+    assert.equal(r3.code, 'NO_VISIT_SELECTED')
+    // confirmCommit without PREVIEW status
+    const r4 = await call(alice, 'confirmCommit', { sessionId, previewHash: 'x', userUtterance: 'ja' })
+    assert.equal(r4.code, 'NOT_IN_PREVIEW')
   })
 })
