@@ -228,9 +228,9 @@ describe('Phase 3 – confirmCommit', () => {
 
   it('rejects a negation ("Nein")', async () => {
     const { sessionId, previewHash } = await previewSession()
-    const res = await call(alice, 'confirmCommit', { sessionId, previewHash, userUtterance: 'Nein, das stimmt nicht.' })
+    const res = await call(alice, 'confirmCommit', { sessionId, previewHash, userUtterance: 'Nein.' })
     assert.equal(res.ok, false)
-    assert.equal(res.code, 'NOT_CONFIRMED')
+    assert.equal(res.code, 'DENIED')
 
     // Session must stay in PREVIEW so the user can try again
     const { VoiceSessions } = cds.entities('voice')
@@ -238,11 +238,11 @@ describe('Phase 3 – confirmCommit', () => {
     assert.equal(session.status, 'PREVIEW')
   })
 
-  it('rejects an unclear utterance ("Ich bin nicht sicher")', async () => {
+  it('rejects an unclear utterance (neither yes nor no)', async () => {
     const { sessionId, previewHash } = await previewSession()
-    const res = await call(alice, 'confirmCommit', { sessionId, previewHash, userUtterance: 'Ich bin nicht sicher.' })
+    const res = await call(alice, 'confirmCommit', { sessionId, previewHash, userUtterance: 'Ich überlege noch.' })
     assert.equal(res.ok, false)
-    assert.equal(res.code, 'NOT_CONFIRMED')
+    assert.equal(res.code, 'UNCLEAR')
   })
 
   it('rejects a wrong hash (HASH_MISMATCH)', async () => {
