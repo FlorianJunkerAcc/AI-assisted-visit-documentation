@@ -73,6 +73,38 @@
             }
           }
         }
+      },
+      "[hybrid]": {
+        "auth": {
+          "kind": "mocked",
+          "users": {
+            "alice": {
+              "password": "alice",
+              "roles": [
+                "VisitDocumenter"
+              ],
+              "attr": {
+                "email": "alice.sales@example.com"
+              }
+            },
+            "carol": {
+              "password": "carol",
+              "roles": [
+                "VisitDocumenter"
+              ],
+              "attr": {
+                "email": "carol.sales@example.com"
+              }
+            },
+            "bob": {
+              "password": "bob",
+              "roles": [],
+              "attr": {
+                "email": "bob.nobody@example.com"
+              }
+            }
+          }
+        }
       }
     },
     "voice": {
