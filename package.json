@@ -6,6 +6,7 @@
     "@cap-js/sqlite": "^3",
     "@sap-ai-sdk/openai": "^2.15.0",
     "@sap/cds": "^10",
+    "@sap/xssec": "^3",
     "pdf-lib": "^1.17.1",
     "ws": "^8"
   },
@@ -35,6 +36,11 @@
         },
         "csrf": true,
         "csrfInBatch": true
+      },
+      "[production]": {
+        "auth": {
+          "kind": "xsuaa"
+        }
       },
       "[development]": {
         "auth": {

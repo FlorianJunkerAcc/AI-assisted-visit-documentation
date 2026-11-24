@@ -1,0 +1,32 @@
+{
+  "xsappname": "aiAssistedVisitDocumentation",
+  "tenant-mode": "dedicated",
+  "scopes": [
+    {
+      "name": "$XSAPPNAME.VisitDocumenter",
+      "description": "May document visits via voice assistant"
+    }
+  ],
+  "role-templates": [
+    {
+      "name": "VisitDocumenter",
+      "description": "Users who may document visits via voice assistant",
+      "scope-references": [
+        "$XSAPPNAME.VisitDocumenter"
+      ]
+    }
+  ],
+  "role-collections": [
+    {
+      "name": "VisitDocumenter",
+      "description": "Users who may document visits via voice assistant",
+      "role-template-references": [
+        "$XSAPPNAME.VisitDocumenter"
+      ]
+    }
+  ],
+  "oauth2-configuration": {
+    "token-validity": 43200,
+    "refresh-token-validity": 2592000
+  }
+}

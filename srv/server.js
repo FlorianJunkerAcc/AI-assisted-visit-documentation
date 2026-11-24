@@ -2,6 +2,8 @@
 // CDS auto-loads this file and applies both hooks before starting to serve.
 //
 // 1. /api/voice-token  – authenticated browser requests a one-time WS token (GET).
+//    Registered in 'served' so CAP's auth middleware (mocked or XSUAA) has already
+//    run and req.user is populated before the handler fires.
 // 2. /ws/voice         – WebSocket bridge registered on the HTTP server via the
 //                        'listening' event (fires when the port is bound).
 import cds from '@sap/cds'
@@ -9,33 +11,14 @@ import { createVoiceToken, registerVoiceBridge } from './voice-bridge.js'
 
 const LOG = cds.log('server')
 
-// Token endpoint.
-// Routes registered in 'bootstrap' run BEFORE CAP mounts its auth middleware, so
-// req.user is never populated here. We fall back to manual Basic Auth parsing against
-// cds.env.requires.auth.users (the mocked-auth config for development).
-cds.on('bootstrap', (app) => {
-  app.get('/api/voice-token', (req, res) => {
-    // If CAP's auth middleware somehow ran first, honour it.
-    if (req.user?.id) {
-      if (!req.user.is?.('VisitDocumenter')) return res.status(403).json({ error: 'Forbidden' })
-      return res.json({ token: createVoiceToken(req.user) })
-    }
-
-    const authHeader = req.headers.authorization ?? ''
-    if (!authHeader.startsWith('Basic ')) return res.status(401).json({ error: 'Unauthorized' })
-
-    const decoded = Buffer.from(authHeader.slice(6), 'base64').toString('utf8')
-    const sep = decoded.indexOf(':')
-    if (sep < 1) return res.status(401).json({ error: 'Unauthorized' })
-    const uid = decoded.slice(0, sep)
-    const pwd = decoded.slice(sep + 1)
-
-    const users = cds.env.requires?.auth?.users ?? {}
-    const u = users[uid]
-    if (!u || u.password !== pwd) return res.status(401).json({ error: 'Unauthorized' })
-    if (!u.roles?.includes('VisitDocumenter')) return res.status(403).json({ error: 'Forbidden' })
-
-    res.json({ token: createVoiceToken({ id: uid, attr: u.attr }) })
+// Token endpoint – runs AFTER CAP's auth middleware.
+// In development (mocked auth) req.user is populated from Basic Auth headers.
+// In production (XSUAA) req.user is populated from the JWT forwarded by the App Router.
+cds.on('served', () => {
+  cds.app.get('/api/voice-token', (req, res) => {
+    if (!req.user?.id) return res.status(401).json({ error: 'Unauthorized' })
+    if (!req.user.is('VisitDocumenter')) return res.status(403).json({ error: 'Forbidden' })
+    res.json({ token: createVoiceToken(req.user) })
   })
 })
 
