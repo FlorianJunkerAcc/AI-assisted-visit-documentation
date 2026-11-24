@@ -11,6 +11,7 @@ const odataDate = (d) => (d ? `/Date(${new Date(d).getTime()})/` : null)
 
 export const fixtures = { visits: [], employees: [], tasks: [], taskTexts: [], taskBtdRefs: [] }
 export const calls = []
+export const created = { tasks: [], taskTexts: [], taskReferences: [], attachments: [] }
 
 export function resetFixtures () {
   fixtures.visits = []
@@ -19,6 +20,10 @@ export function resetFixtures () {
   fixtures.taskTexts = []
   fixtures.taskBtdRefs = []
   calls.length = 0
+  created.tasks = []
+  created.taskTexts = []
+  created.taskReferences = []
+  created.attachments = []
 }
 
 let objCounter = 0
@@ -113,56 +118,65 @@ const sets = {
 }
 
 async function mockTransport ({ method, path, data, headers }) {
-  calls.push({ method, path, data, headers })
+  calls.push({ method, path })
 
   const [resource, query = ''] = path.replace(/^\//, '').split('?')
-
-  // --- by-key operations (GET / PATCH) --------------------------------------------------------
-  const byKey = /^(\w+)\('([0-9A-Fa-f]+)'\)$/.exec(resource)
-  if (byKey) {
-    const setName = byKey[1]
-    const id = byKey[2]
-    const rows = sets[setName]?.()
-    if (!rows) throw Object.assign(new Error(`mock: unknown resource ${setName}`), { status: 404 })
-    const row = rows.find(r => r.ObjectID === id)
-    if (!row) throw Object.assign(new Error('mock: not found'), { status: 404 })
-
-    if (method === 'PATCH') {
-      const ifMatch = headers?.['If-Match']
-      if (!ifMatch) throw Object.assign(new Error('mock: PATCH requires If-Match'), { status: 428 })
-      if (ifMatch !== '*' && row.__metadata?.etag && ifMatch !== row.__metadata.etag) {
-        throw Object.assign(new Error('mock: ETag mismatch'), { status: 412 })
-      }
-      Object.assign(row, data)
-      row.__metadata = { ...row.__metadata, etag: `W/"updated-${Date.now()}"` }
-      return {}
-    }
-    if (method === 'GET') return { d: row }
-    throw Object.assign(new Error(`mock: ${method} not supported for by-key access`), { status: 405 })
-  }
-
-  // --- collection operations (GET / POST) -----------------------------------------------------
-  const rows = sets[resource]?.()
-  if (!rows) throw Object.assign(new Error(`mock: unknown resource ${resource}`), { status: 404 })
-
-  if (method === 'POST') {
-    const newRow = {
-      __metadata: { etag: `W/"new-${Date.now()}"` },
-      ObjectID: objectId(),
-      ID: String(3000 + rows.length + 1),
-      ...data
-    }
-    rows.push(newRow)
-    return { d: newRow }
-  }
 
   if (method === 'GET') {
     const params = Object.fromEntries(query.split('&').filter(Boolean).map(p => {
       const i = p.indexOf('=')
       return [p.slice(0, i), decodeURIComponent(p.slice(i + 1))]
     }))
+    const byKey = /^(\w+)\('([0-9A-Fa-f]+)'\)$/.exec(resource)
+    if (byKey) {
+      const row = sets[byKey[1]]?.().find(r => r.ObjectID === byKey[2])
+      if (!row) throw Object.assign(new Error('mock: not found'), { status: 404 })
+      return { d: row }
+    }
+    const rows = sets[resource]?.()
+    if (!rows) throw Object.assign(new Error(`mock: unknown resource ${resource}`), { status: 404 })
     const filtered = params.$filter ? rows.filter(compileFilter(params.$filter)) : rows
     return { d: { results: filtered.slice(0, Number(params.$top ?? 1000)) } }
+  }
+
+  if (method === 'PATCH') {
+    const byKey = /^(\w+)\('([0-9A-Fa-f]+)'\)$/.exec(resource)
+    if (!byKey) throw Object.assign(new Error('mock: PATCH requires a key'), { status: 400 })
+    const rows = sets[byKey[1]]?.()
+    if (!rows) throw Object.assign(new Error(`mock: unknown resource ${byKey[1]}`), { status: 404 })
+    const row = rows.find(r => r.ObjectID === byKey[2])
+    if (!row) throw Object.assign(new Error('mock: not found'), { status: 404 })
+    // ETag validation: if the client sends If-Match, honour it (simulates C4C concurrency control)
+    const ifMatch = headers?.['If-Match']
+    if (ifMatch && ifMatch !== '*' && row.__metadata?.etag && ifMatch !== row.__metadata.etag) {
+      throw Object.assign(new Error('mock: ETag mismatch'), { status: 412 })
+    }
+    Object.assign(row, data)
+    if (row.__metadata) row.__metadata = { ...row.__metadata, etag: `W/"updated-${Date.now()}"` }
+    return {}
+  }
+
+  if (method === 'POST') {
+    if (resource === 'TasksCollection') {
+      const objId = objectId()
+      const task = { ObjectID: objId, ID: `T${created.tasks.length + 1}`, ...data }
+      created.tasks.push(task)
+      return { d: { ObjectID: objId, ID: task.ID } }
+    }
+    if (resource === 'TasksTextCollection') {
+      created.taskTexts.push({ ...data })
+      return {}
+    }
+    if (resource === 'TasksBTDReferenceCollection') {
+      created.taskReferences.push({ ...data })
+      return {}
+    }
+    if (resource === 'VisitAttachmentCollection') {
+      // Store only metadata – skip the base64 Binary to keep tests lean
+      created.attachments.push({ TypeCode: data?.TypeCode, Name: data?.Name, MimeType: data?.MimeType })
+      return {}
+    }
+    throw Object.assign(new Error(`mock: POST to ${resource} not supported`), { status: 405 })
   }
 
   throw Object.assign(new Error(`mock: ${method} not supported`), { status: 405 })
