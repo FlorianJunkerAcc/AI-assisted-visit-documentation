@@ -3,7 +3,7 @@
 // The AI never reaches this module directly – only VoiceAssistantService does.
 import cds from '@sap/cds'
 import { ENTITY_SETS, VISIT_STATUS, TASK, TASK_BTD_REFERENCE, VISIT_ATTACHMENT } from './c4c-codes.js'
-import { dateTimeOffsetLiteral, parseODataDate } from './time.js'
+import { datetimeLiteral, parseODataDate } from './time.js'
 
 const LOG = cds.log('c4c')
 
@@ -105,7 +105,7 @@ export const isOwnerOrOrganizer = (visit, email) =>
  * C4C rejects "or" across different properties, so two queries are merged.
  */
 export async function findOpenVisitsForUser (email, { start, end }) {
-  const timeFilter = `StartDateTime ge ${dateTimeOffsetLiteral(start)} and StartDateTime lt ${dateTimeOffsetLiteral(end)}`
+  const timeFilter = `StartDateTime ge ${datetimeLiteral(start)} and StartDateTime lt ${datetimeLiteral(end)}`
   const queries = ['OwnerEmailURI', 'OrganizerEmailURI'].map(prop => buildPath(ENTITY_SETS.visit, {
     $filter: `${prop} eq ${str(email)} and Status eq ${str(VISIT_STATUS.OPEN)} and ${timeFilter}`,
     $select: VISIT_SELECT,
