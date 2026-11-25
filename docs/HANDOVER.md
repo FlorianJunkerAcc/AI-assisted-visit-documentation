@@ -1,6 +1,6 @@
 # Übergabe: Voice-Assistent zur Visit-Dokumentation (SAP CAP + SAP Sales Cloud V1)
 
-Stand: 25.11.2026. Phasen 1–9 sind implementiert. 75 Tests erwartet grün (noch nicht in BAS ausgeführt). App läuft lokal, E2E mit echtem AI Core und Deployment auf BTP stehen aus.
+Stand: 25.11.2026. Phasen 1–9 sind implementiert. App läuft lokal mit echtem AI Core und C4C (`cds watch --profile hybrid`). E2E-Test läuft. 75 Unit-Tests noch nicht in BAS ausgeführt. Deployment auf BTP steht aus.
 
 ---
 
@@ -78,11 +78,11 @@ Die Quellen liegen in `docs/c4c-metadata/`, die Konstanten in `srv/lib/c4c-codes
 | `srv/lib/pdf-generator.js` | `generateSummaryPdf` und `generateTranscriptPdf` mit `pdf-lib` StandardFonts.Helvetica. A4, 50 pt Rand, automatischer Zeilenumbruch. Gibt `Uint8Array` zurück. |
 | `srv/lib/ai-tools.js` | `SYSTEM_PROMPT` (Deutsch, 11 Regeln, Datenschutz-Hinweis, Workflow-Ablauf) und `AI_TOOLS` (10 OpenAI function-tool-Definitionen). Kein `sessionId` in irgendwelchen Tool-Parametern — Bridge injiziert es. |
 | `srv/voice-bridge.js` | WebSocket-Bridge: Browser ⇄ CAP ⇄ AI Core. OTP-Token-Store (60 s TTL). `registerVoiceBridge(httpServer)` hängt sich ans `upgrade`-Event. `handleVoiceConnection` verwaltet AI-Core-Client, Tool-Dispatch, Transkript-Speicherung, Binary-Relay. |
-| `srv/server.js` | CAP-Bootstrap: registriert `GET /api/voice-token` im `'served'`-Hook (nach Auth-Middleware, `req.user` ist gesetzt) und hängt Bridge an `listening`-Event. |
+| `srv/server.js` | CAP-Bootstrap: registriert `GET /api/voice-token` im `'served'`-Hook (nach Auth-Middleware, `req.user` ist gesetzt). Dev-only-Fallback: wenn `req.user` leer und `NODE_ENV !== 'production'`, wird `?_dev_user=alice` akzeptiert (BAS-Tunnel filtert `Authorization`-Header heraus). Hängt Bridge an `listening`-Event. |
 | `srv/lib/c4c-codes.js` | alle bestätigten Code-Werte mit Quellenangabe |
 | `srv/lib/time.js` | Tagesgrenzen in der Zeitzone (inklusive Zeitumstellung), OData-Datumswerte |
 | `srv/lib/validation.js`, `srv/lib/tool-result.js` | Eingabeprüfung und Ergebnisformat |
-| `app/index.html` | Einzel-Datei-UI ohne externe Dependencies. Credentials-Felder sind standardmäßig versteckt; bei 401 auf `/api/voice-token` erscheinen sie automatisch (Entwicklungsmodus). In Produktion (App Router + XSUAA) werden sie nie angezeigt. WebSocket, PCM16-Mikrofon via `ScriptProcessorNode`, PCM16-Wiedergabe via `AudioContext`. |
+| `app/index.html` | Einzel-Datei-UI ohne externe Dependencies. Credentials-Felder sind standardmäßig versteckt; bei 401 auf `/api/voice-token` erscheinen sie automatisch. Bei weiterem 401 (BAS-Tunnel filtert Basic-Auth) wird automatisch `?_dev_user=<username>` als Fallback verwendet. In Produktion (App Router + XSUAA) werden Felder nie angezeigt. WebSocket, PCM16-Mikrofon via `ScriptProcessorNode`, PCM16-Wiedergabe via `AudioContext`. |
 | `app/xs-app.json` | App-Router-Routing: `/api/voice-token` → XSUAA-Authentifizierung, `/ws/voice` → kein Auth + WebSocket-Upgrade, `/api/*` → XSUAA, `/*` → statische Dateien aus `app/`. |
 | `app/package.json` | App-Router-Abhängigkeit: `@sap/approuter ^16`. |
 | `mta.yaml` | Deployment-Deskriptor: CAP srv-Modul (1 Instanz, 512 MB), App-Router-Modul (1 Instanz, 128 MB). Ressourcen: XSUAA (xsuaa/application, `xs-security.json`), Destination (destination/lite), AI Core (existing-service `aicore`). Kein HDI, kein HDB-Deployer. |
@@ -102,7 +102,7 @@ Die Quellen liegen in `docs/c4c-metadata/`, die Konstanten in `srv/lib/c4c-codes
 
 ### Kurzfristig (in BAS erledigen)
 
-1. **75 Tests in BAS ausführen:**
+1. **75 Unit-Tests in BAS ausführen:**
    ```bash
    git pull
    npm install
@@ -111,27 +111,37 @@ Die Quellen liegen in `docs/c4c-metadata/`, die Konstanten in `srv/lib/c4c-codes
    ```
    Erwartet: 75 Tests grün (Phasen 1–6). Anschließend `package-lock.json` und `app/package-lock.json` committen und pushen.
 
-2. **AI-Core-Instanzname in `mta.yaml` eingetragen:** `aicore` ✅
+2. **E2E-Test vollständig durchlaufen** (`cds watch --profile hybrid`):
+   - Besuch finden und bestätigen
+   - Zusammenfassung diktieren, Endzeit nennen
+   - Optionalen Task anlegen
+   - Vorschau bestätigen → Commit
+
+   Zu prüfen und nach dem Lauf in HANDOVER zu vermerken:
+   - [ ] C4C-Antwortformat korrekt entpackt (`d.results`, `__metadata.etag`)
+   - [ ] URL-Kodierung der `$filter`-Werte funktioniert
+   - [ ] Status und Endzeit gehen in einem einzigen PATCH
+   - [ ] `DocumentType 0006` wird akzeptiert
+   - [ ] PDFs werden korrekt angehängt
 
 ### Mittelfristig
 
-3. **Phase 8: E2E-Test mit echtem AI Core und C4C.**
-   Voraussetzungen: BTP Destination `SAP_Sales_Cloud_V1` konfiguriert und erreichbar, AI-Core-Service-Binding verfügbar (z. B. via `cds bind`). Zu prüfen beim ersten echten Lauf:
-   - Antwortformat des Remote-Service (`d.results` oder bereits entpackt, `__metadata.etag` vorhanden?)
-   - URL-Kodierung der `$filter`-Werte
-   - Groß-/Kleinschreibung der E-Mail in C4C
-   - ob Status und Endzeit in einem einzigen PATCH funktionieren
-   - `DocumentType 0006` als Standard-Tasktyp bestätigen
-
-4. **Deployment auf BTP (Phase 9 infrastrukturell fertig, noch nicht deployed):**
-   - AI-Core-Instanzname in `mta.yaml` eintragen (s. o.)
-   - `mbt build && cf deploy mta_archives/*.mtar`
-   - Nach dem Deployment: RoleCollection `VisitDocumenter` dem User in BTP Cockpit zuweisen
-   - iOS: HTTPS ist Pflicht für Mikrofon → CF-Route reicht
+3. **Deployment auf BTP:**
+   ```bash
+   # In BAS:
+   npm install -g mbt   # einmalig
+   mbt build
+   cf target -s AI_DEV
+   cf deploy mta_archives/aiAssistedVisitDocumentation_1.0.0.mtar
+   ```
+   Nach dem Deploy im BTP Cockpit: RoleCollection `VisitDocumenter` dem User zuweisen.
+   Dann testen: App-Router-URL aufrufen → XSUAA-Login → kein Credentials-Formular sichtbar.
 
 **Offene Punkte beim User (nicht blockierend):**
-- Name der AI-Core-Instanz in `AI_DEV` (für `mta.yaml`)
-- Bestätigung, dass `DocumentType 0006` der Standard-Tasktyp ist
+- Bestätigung, dass `DocumentType 0006` der Standard-Tasktyp ist (wird beim E2E-Test geklärt)
 - Default-Processor, wenn niemand genannt wird (angenommen: der User selbst)
 - Mitarbeiter ohne gültigen Benutzer bekommen keine Tasks (angenommen)
 - Freigabe durch den Datenschutz zu P1 und Entscheidung zu R1/R2 vor dem Go-live
+
+**Lokale Testkonfiguration (nicht committen):**
+- `.cdsrc-private.json`: AI-Core- und Destination-Bindings + `auth.users.alice.attr.email = florian.junker@accenture.com`

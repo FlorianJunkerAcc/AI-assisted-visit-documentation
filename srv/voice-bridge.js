@@ -155,14 +155,22 @@ async function handleVoiceConnection (ws, userInfo) {
     attachAiHandlers(aiClient)
 
     const transcriptionModel = cds.env.voice?.aicore?.transcriptionModel ?? 'whisper-1'
+
+    // Trigger initial greeting after AI Core confirms the session config.
+    // Without response.create the model waits for the user to speak first,
+    // which contradicts SYSTEM_PROMPT step 1 ("Begrüße den Nutzer").
+    aiClient.once('session.updated', () => {
+      aiClient.send({ type: 'response.create' })
+    })
+
     aiClient.send({
       type: 'session.update',
       session: {
         type: 'realtime',
         output_modalities: ['audio', 'text'],
         instructions: SYSTEM_PROMPT,
-        voice: 'alloy',
         audio: {
+          output: { voice: 'alloy' },
           input: {
             format: { type: 'audio/pcm', rate: 24000 },
             transcription: { model: transcriptionModel },
