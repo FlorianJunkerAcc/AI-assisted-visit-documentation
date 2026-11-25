@@ -49,21 +49,30 @@
     }
     .side { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
 
-    /* ---------- Voice interaction area: always dark, independent of the theme ---------- */
+    /* ---------- Voice interaction area: surface follows the theme, halo colours stay blue/violet ---------- */
     .voice {
       position: relative; display: flex; flex-direction: column; overflow: hidden;
       min-height: clamp(26rem, 70dvh, 48rem);
+      border-radius: var(--sapElement_BorderCornerRadius, 0.75rem);
+      box-shadow: var(--sapContent_Shadow0, 0 0 0 0.0625rem rgba(85, 107, 129, 0.25));
+    }
+    /* Light: bright Fiori tile surface, text colours come from the theme */
+    html[data-theme="light"] .voice {
+      background:
+        radial-gradient(55% 45% at 50% 42%, rgba(91, 91, 255, 0.07) 0%, transparent 70%),
+        var(--sapTile_Background, #ffffff);
+    }
+    /* Dark: near-black surface; make the UI5 text components readable on it */
+    html[data-theme="dark"] .voice {
       background:
         radial-gradient(55% 45% at 50% 42%, rgba(70, 62, 210, 0.14) 0%, transparent 70%),
         #02030a;
-      border-radius: var(--sapElement_BorderCornerRadius, 0.75rem);
-      box-shadow: var(--sapContent_Shadow0, 0 0 0 0.0625rem rgba(85, 107, 129, 0.25));
-      /* make the UI5 text components readable on the dark surface in every theme */
       --sapTextColor: #eef0ff;
       --sapGroup_TitleTextColor: #ffffff;
       --sapContent_LabelColor: rgba(200, 208, 255, 0.72);
     }
-    body.is-error .voice { --sapGroup_TitleTextColor: #ffc2cf; }
+    html[data-theme="light"] body.is-error .voice { --sapGroup_TitleTextColor: var(--sapNegativeTextColor, #b00); }
+    html[data-theme="dark"]  body.is-error .voice { --sapGroup_TitleTextColor: #ffc2cf; }
 
     #stage { position: relative; flex: 1 1 0; min-height: 18rem; }
     #halo { position: absolute; inset: 0; margin: auto; display: block; pointer-events: none; }
@@ -108,6 +117,7 @@
 <body>
 
   <ui5-shellbar id="shell" primary-title="Besuchsdokumentation" secondary-title="Sprachassistent">
+    <img slot="logo" src="sap-logo.svg" alt="SAP">
     <ui5-shellbar-item id="themeBtn" icon="dark-mode" text="Dunkles Design"></ui5-shellbar-item>
   </ui5-shellbar>
 
@@ -212,6 +222,7 @@
       uniform vec4  u_w;    /* x=listen y=think z=speak w=active              */
       uniform vec2  u_amp;  /* x=audio level 0..1, y=error tint 0..1          */
       uniform float u_t;    /* seconds (wrapped), sparkle twinkle only        */
+      uniform float u_light; /* 0 = dark surface (glow), 1 = light surface (ink) */
 
       #define TAU 6.28318530718
 
@@ -249,7 +260,9 @@
         float cph  = fract(ang / TAU + u_ph.z / TAU);
         vec3  col  = pal(cph);
         float bri  = 0.55 + 0.45 * act;
-        vec3  c    = (mix(col, vec3(0.85, 0.95, 1.0), 0.55) * core + col * glow) * bri;
+        /* ring highlight: icy white on dark, saturated indigo on light (white would vanish) */
+        vec3  hi   = mix(vec3(0.85, 0.95, 1.0), vec3(0.30, 0.26, 0.95), u_light);
+        vec3  c    = (mix(col, hi, 0.55) * core + col * glow) * bri;
 
         /* ribbons */
         float pres = clamp(wL * 0.85 + wT + wS, 0.0, 1.0);
@@ -295,6 +308,9 @@
           c += pal(fract(h * 3.0)) * dotv * zone * wS * (0.4 + 0.9 * lvl) * 1.2;
         }
 
+        /* fade everything out before the canvas edge (otherwise the glow tail shows as a box on light surfaces) */
+        c *= smoothstep(1.0, 0.78, rad);
+
         /* soft highlight roll-off */
         c = 1.0 - exp(-c * 1.5);
 
@@ -306,7 +322,11 @@
         float m = max(c.r, max(c.g, c.b));
         c += (hash(gl_FragCoord.xy) - 0.5) / 255.0 * smoothstep(0.0, 0.02, m);
 
-        gl_FragColor = vec4(c, m);   /* premultiplied: behaves like additive light */
+        /* dark surface: premultiplied colour with alpha = max channel behaves like additive light.
+           light surface: same intensity used as alpha, colour darkened -> coloured "ink" on white. */
+        vec3  ink = (c / max(m, 0.001)) * 0.72;
+        float aL  = min(m * 1.35, 1.0);
+        gl_FragColor = mix(vec4(c, m), vec4(ink * aL, aL), u_light);
       }
     `
 
@@ -333,6 +353,9 @@
       const sources = {}                 /* mode -> { node, buf, gain } */
       let lvl = 0
       const ph = [0, 0, 0, 0]
+      /* surface brightness: 0 = dark (glow), 1 = light (ink); starts at the theme set before first paint */
+      let lightTgt = document.documentElement.getAttribute('data-theme') === 'light' ? 1 : 0
+      let lightCur = lightTgt
 
       let gl = null, prog = null, U = {}, raf = 0, last = 0
       let cssSize = 0, quality = 1, appliedQ = 0
@@ -366,7 +389,7 @@
         gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
 
         U = {}
-        for (const n of ['res', 'ph', 'w', 'amp', 't']) U[n] = gl.getUniformLocation(prog, 'u_' + n)
+        for (const n of ['res', 'ph', 'w', 'amp', 't', 'light']) U[n] = gl.getUniformLocation(prog, 'u_' + n)
         gl.disable(gl.BLEND)
         gl.clearColor(0, 0, 0, 0)
         cssSize = 0; appliedQ = 0
@@ -414,6 +437,7 @@
 
         const kw = 1 - Math.exp(-dt * 4.2)
         for (const k of KEYS) cur[k] += (tgt[k] - cur[k]) * kw
+        lightCur += (lightTgt - lightCur) * (1 - Math.exp(-dt * 6))
 
         const target = level()
         lvl += (target - lvl) * (1 - Math.exp(-dt * (target > lvl ? 32 : 7)))
@@ -428,6 +452,7 @@
         gl.uniform4f(U.w, cur.L, cur.T, cur.S, cur.act)
         gl.uniform2f(U.amp, lvl, cur.err)
         gl.uniform1f(U.t, (now * 0.001) % 1000)
+        gl.uniform1f(U.light, lightCur)
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
         if (Halo.onFrame) Halo.onFrame()
@@ -454,6 +479,7 @@
         init,
         onFrame: null,
         setMode (m) { mode = m; tgt = MODES[m] || MODES.idle },
+        setTheme (t) { lightTgt = t === 'light' ? 1 : 0 },
         /* mode -> AnalyserNode that drives the audio level in that mode */
         setSource (m, node, gain) {
           if (!node) { delete sources[m]; return }
@@ -469,6 +495,7 @@
     const THEME_KEY = 'visit-theme'
     function applyTheme (t) {
       document.documentElement.setAttribute('data-theme', t)
+      Halo.setTheme(t)
       if (window.UI5) window.UI5.setTheme(t === 'dark' ? 'sap_horizon_dark' : 'sap_horizon')
       const btn = document.getElementById('themeBtn')
       btn.setAttribute('icon', t === 'dark' ? 'light-mode' : 'dark-mode')
