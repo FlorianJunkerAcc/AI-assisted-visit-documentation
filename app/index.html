@@ -2,211 +2,250 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#02030a">
   <title>Besuchsdokumentation</title>
   <style>
     :root {
-      --bg:         #090910;
-      --surface:    rgba(255,255,255,0.03);
-      --border:     rgba(255,255,255,0.08);
-      --accent:     #00d4ff;
-      --accent-dim: rgba(0,212,255,0.1);
-      --purple:     #9d6cff;
-      --purple-dim: rgba(157,108,255,0.1);
-      --warning:    #f59e0b;
-      --error:      #ff4466;
-      --text:       #dde4ee;
-      --text-muted: #5a6478;
-      --text-dim:   #2e3a4e;
+      --bg:         #02030a;
+      --text:       #eef0ff;
+      --text-soft:  rgba(200,208,255,0.64);
+      --text-dim:   rgba(170,180,240,0.38);
+      --line:       rgba(150,160,255,0.16);
+      --surface:    rgba(120,130,255,0.045);
+      --indigo:     #5b5bff;
+      --violet:     #9b6bff;
+      --azure:      #3aa0ff;
+      --ice:        #bfe6ff;
+      --warning:    #f5b14a;
+      --error:      #ff5c7c;
+      --ease:       cubic-bezier(.2,.8,.2,1);
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
 
+    html { background: var(--bg); }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-      background: var(--bg);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-weight: 300;
       color: var(--text);
       min-height: 100dvh;
-      display: flex;
-      flex-direction: column;
-      background-image:
-        radial-gradient(ellipse 60% 50% at 10% 70%, rgba(0,212,255,0.04) 0%, transparent 60%),
-        radial-gradient(ellipse 50% 60% at 90% 15%, rgba(157,108,255,0.03) 0%, transparent 60%);
+      display: flex; flex-direction: column;
+      background:
+        radial-gradient(55% 45% at 50% 44%, rgba(70,62,210,0.11) 0%, transparent 70%),
+        var(--bg);
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* header */
+    /* ---------- header (no backdrop-filter: keeps the GPU free for the halo) ---------- */
     header {
-      display: flex; align-items: center; gap: 0.6rem;
-      padding: 0 1.5rem; height: 2.75rem;
-      border-bottom: 1px solid var(--border);
-      background: rgba(9,9,16,0.85);
-      backdrop-filter: blur(16px);
-      position: sticky; top: 0; z-index: 10; flex-shrink: 0;
-    }
-    .hdr-dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: var(--accent); box-shadow: 0 0 8px rgba(0,212,255,0.6);
+      flex-shrink: 0; text-align: center;
+      padding: 1.5rem 1rem 0.2rem;
     }
     header h1 {
-      font-size: 0.75rem; font-weight: 600;
-      letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-muted);
+      font-size: 0.78rem; font-weight: 400; color: var(--text);
+      letter-spacing: 0.42em; text-transform: uppercase; padding-left: 0.42em;
     }
-    .hdr-badge {
-      margin-left: auto; font-size: 0.6rem; letter-spacing: 0.1em;
-      text-transform: uppercase; color: var(--text-dim);
-      border: 1px solid var(--border); padding: 0.15rem 0.5rem; border-radius: 100px;
+    header p {
+      margin-top: 0.55rem; font-size: 0.62rem; color: var(--text-dim);
+      letter-spacing: 0.34em; text-transform: uppercase; padding-left: 0.34em;
     }
 
-    /* layout */
+    /* ---------- layout ---------- */
     main {
       flex: 1; display: flex; flex-direction: column; align-items: center;
-      padding: 1.5rem 1rem 2rem; gap: 1.1rem;
-      max-width: 680px; width: 100%; margin: 0 auto;
+      width: 100%; max-width: 720px; margin: 0 auto;
+      padding: 0 1rem calc(1.6rem + env(safe-area-inset-bottom));
     }
 
-    /* glass card */
-    .card {
-      width: 100%; background: var(--surface);
-      border: 1px solid var(--border); border-radius: 12px;
-      padding: 1.4rem 1.5rem; backdrop-filter: blur(8px);
+    /* halo stage: large, centered. Canvas is absolutely positioned so it never
+       feeds back into the layout (no resize loops). */
+    #stage {
+      position: relative; flex: 1 1 0; min-height: 260px; width: 100%;
     }
+    #halo {
+      position: absolute; inset: 0; margin: auto; display: block;
+      pointer-events: none;
+    }
+    #haloFallback {
+      display: none; position: absolute; inset: 0; margin: auto;
+      width: 58%; max-width: 420px; aspect-ratio: 1; border-radius: 50%;
+      border: 2px solid rgba(150,150,255,0.9);
+      box-shadow: 0 0 40px rgba(91,91,255,0.55), inset 0 0 40px rgba(91,91,255,0.25);
+      animation: fbPulse 3.2s ease-in-out infinite;
+    }
+    .no-gl #halo { display: none; }
+    .no-gl #haloFallback { display: block; }
+    @keyframes fbPulse { 0%,100% { transform: scale(1); opacity: .8 } 50% { transform: scale(1.04); opacity: 1 } }
 
-    /* form */
-    .field { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.9rem; }
-    .field:last-of-type { margin-bottom: 1.1rem; }
+    /* state label + status */
+    .info { text-align: center; min-height: 4.4rem; padding-top: 0.4rem; }
+    #stateLabel {
+      font-size: 0.9rem; font-weight: 400; color: var(--text);
+      letter-spacing: 0.46em; text-transform: uppercase; padding-left: 0.46em;
+    }
+    #statusText {
+      margin-top: 0.6rem; font-size: 0.9rem; color: var(--text-soft);
+      letter-spacing: 0.02em; min-height: 1.3rem;
+    }
+    body.is-error #stateLabel { color: #ffc2cf; }
+
+    /* ---------- form ---------- */
+    #loginSection { width: 100%; max-width: 340px; margin-top: 1.1rem; display: flex; flex-direction: column; align-items: stretch; gap: 0.9rem; }
+    #credFields { display: flex; flex-direction: column; gap: 0.7rem; }
+    .field { display: flex; flex-direction: column; gap: 0.3rem; }
     .field label {
-      font-size: 0.62rem; font-weight: 600;
-      color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.12em;
+      font-size: 0.6rem; font-weight: 500; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 0.2em;
     }
     .field input {
-      background: rgba(255,255,255,0.04); color: var(--text);
-      padding: 0.55rem 0.8rem; font-size: 0.9rem;
-      border: 1px solid var(--border); border-radius: 6px; outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
+      background: rgba(120,130,255,0.06); color: var(--text);
+      padding: 0.65rem 0.9rem; font: inherit; font-size: 0.92rem;
+      border: 1px solid var(--line); border-radius: 10px; outline: none;
+      transition: border-color .2s, box-shadow .2s;
     }
-    .field input:focus {
-      border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,212,255,0.1);
-    }
+    .field input:focus { border-color: rgba(150,150,255,0.7); box-shadow: 0 0 0 3px rgba(91,91,255,0.18); }
+    #loginErr { color: #ff9db1; font-size: 0.8rem; min-height: 1rem; text-align: center; }
 
-    /* buttons */
+    /* ---------- buttons ---------- */
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
-      padding: 0.6rem 1.5rem; font-size: 0.75rem; font-weight: 600;
-      letter-spacing: 0.1em; text-transform: uppercase;
-      border-radius: 6px; border: 1px solid transparent;
-      cursor: pointer; transition: all 0.15s; white-space: nowrap; background: transparent;
+      padding: 0.85rem 2rem; font: inherit; font-size: 0.7rem; font-weight: 500;
+      letter-spacing: 0.22em; text-transform: uppercase; white-space: nowrap;
+      border-radius: 999px; border: 1px solid transparent; background: transparent;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: transform .18s var(--ease), box-shadow .25s, background-color .25s, border-color .25s, color .25s;
     }
-    .btn:disabled { opacity: 0.25; cursor: default; }
+    .btn:active:not(:disabled) { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.3; cursor: default; }
+    .btn:focus-visible { outline: 2px solid var(--ice); outline-offset: 3px; }
+
     .btn-primary {
-      border-color: var(--accent); color: var(--accent); background: var(--accent-dim);
+      color: #f4f5ff;
+      border-color: rgba(150,150,255,0.55);
+      background: linear-gradient(135deg, rgba(91,91,255,0.38), rgba(155,107,255,0.34));
+      box-shadow: 0 0 26px rgba(91,91,255,0.24), inset 0 0 14px rgba(160,175,255,0.12);
     }
     .btn-primary:not(:disabled):hover {
-      background: rgba(0,212,255,0.18); box-shadow: 0 0 18px rgba(0,212,255,0.22);
+      border-color: rgba(190,200,255,0.85);
+      background: linear-gradient(135deg, rgba(91,91,255,0.55), rgba(155,107,255,0.5));
+      box-shadow: 0 0 38px rgba(110,100,255,0.42), inset 0 0 16px rgba(180,195,255,0.18);
     }
     .btn-danger {
-      border-color: var(--error); color: var(--error); background: rgba(255,68,102,0.07);
+      color: #ffc9d5; border-color: rgba(255,92,124,0.45); background: rgba(255,92,124,0.07);
     }
     .btn-danger:not(:disabled):hover {
-      background: rgba(255,68,102,0.16); box-shadow: 0 0 18px rgba(255,68,102,0.22);
+      border-color: rgba(255,120,148,0.8); background: rgba(255,92,124,0.15);
+      box-shadow: 0 0 26px rgba(255,92,124,0.25);
     }
-    .btn-ghost {
-      border-color: var(--border); color: var(--text-muted); font-size: 0.72rem;
-    }
+    .btn-ghost { color: var(--text-soft); border-color: var(--line); }
     .btn-ghost:not(:disabled):hover {
-      border-color: rgba(255,255,255,0.15); color: var(--text); background: rgba(255,255,255,0.03);
+      color: var(--text); border-color: rgba(170,180,255,0.4); background: rgba(120,130,255,0.08);
     }
 
-    #loginErr { color: var(--error); font-size: 0.78rem; min-height: 1rem; margin-top: 0.5rem; }
+    #mainSection { display: none; margin-top: 1.1rem; }
+    #mainSection.visible { display: block; }
+    .ctrl-row { display: flex; gap: 0.7rem; flex-wrap: wrap; justify-content: center; }
 
-    /* halo */
-    #haloWrap { display: flex; justify-content: center; align-items: center; width: 100%; }
-    #halo     { display: block; }
-
-    /* status text */
-    #statusText {
-      font-size: 0.82rem; color: var(--text-muted);
-      text-align: center; letter-spacing: 0.03em; min-height: 1.2rem;
+    /* ---------- preview ---------- */
+    #previewCard {
+      width: 100%; max-width: 560px; margin-top: 0.9rem; display: none;
+      border: 1px solid rgba(245,177,74,0.28); border-left: 2px solid var(--warning);
+      background: rgba(245,177,74,0.05); border-radius: 12px; padding: 0.95rem 1.2rem;
+      animation: rise .4s var(--ease);
     }
+    .prev-title {
+      font-size: 0.6rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.22em; color: var(--warning); margin-bottom: 0.55rem;
+    }
+    #previewText { white-space: pre-wrap; font-size: 0.9rem; line-height: 1.65; color: var(--text); font-weight: 300; }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
 
-    /* control row */
-    .ctrl-row { display: flex; gap: 0.65rem; flex-wrap: wrap; justify-content: center; }
-
-    /* transcript panel */
+    /* ---------- transcript drawer (opaque: no backdrop blur over the animated canvas) ---------- */
     #tcWrap {
-      width: 100%; background: var(--surface);
-      border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+      position: fixed; left: 50%; bottom: 0; z-index: 20;
+      width: min(720px, 100%); max-height: 55dvh;
+      display: flex; flex-direction: column;
+      background: rgba(6,8,24,0.97);
+      border: 1px solid var(--line); border-bottom: 0; border-radius: 18px 18px 0 0;
+      transform: translate(-50%, 105%); visibility: hidden;
+      transition: transform .38s var(--ease), visibility 0s .38s;
     }
+    #tcWrap.open { transform: translate(-50%, 0); visibility: visible; transition: transform .38s var(--ease); }
     .tc-hdr {
-      padding: 0.55rem 1rem;
-      font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.12em; color: var(--text-dim);
-      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.75rem 1rem 0.75rem 1.2rem; border-bottom: 1px solid var(--line);
+      font-size: 0.62rem; font-weight: 500; text-transform: uppercase;
+      letter-spacing: 0.24em; color: var(--text-soft);
     }
+    .tc-close {
+      background: none; border: 0; color: var(--text-soft); font-size: 1.4rem; line-height: 1;
+      width: 2rem; height: 2rem; border-radius: 50%; cursor: pointer;
+    }
+    .tc-close:hover { color: var(--text); background: rgba(120,130,255,0.12); }
     #transcript {
-      display: flex; flex-direction: column; gap: 0.75rem;
-      max-height: 320px; overflow-y: auto;
-      padding: 0.85rem 1rem;
-      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+      display: flex; flex-direction: column; gap: 0.8rem; overflow-y: auto;
+      padding: 1rem 1.2rem calc(1.2rem + env(safe-area-inset-bottom));
+      scrollbar-width: thin; scrollbar-color: var(--line) transparent;
     }
     #transcript:empty::before {
       content: 'Hier erscheint das Gespräch …';
-      color: var(--text-dim); font-size: 0.78rem; letter-spacing: 0.05em;
-      text-align: center; padding: 0.5rem 0; display: block;
+      color: var(--text-dim); font-size: 0.8rem; letter-spacing: 0.05em; text-align: center; display: block;
     }
-
-    /* chat bubbles */
     .brow { display: flex; flex-direction: column; gap: 0.2rem; }
     .brow.user      { align-items: flex-end; }
     .brow.assistant { align-items: flex-start; }
     .blbl {
-      font-size: 0.58rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.1em; color: var(--text-dim); padding: 0 0.2rem;
+      font-size: 0.56rem; font-weight: 500; text-transform: uppercase;
+      letter-spacing: 0.2em; color: var(--text-dim); padding: 0 0.3rem;
     }
     .bbub {
-      max-width: 85%; padding: 0.6rem 0.9rem;
-      border-radius: 10px; font-size: 0.875rem; line-height: 1.55; word-break: break-word;
+      max-width: 86%; padding: 0.6rem 0.95rem; border-radius: 14px;
+      font-size: 0.9rem; line-height: 1.55; word-break: break-word; font-weight: 300;
     }
     .brow.user .bbub {
-      background: var(--accent-dim); border: 1px solid rgba(0,212,255,0.22);
-      border-bottom-right-radius: 2px;
+      background: rgba(58,160,255,0.12); border: 1px solid rgba(58,160,255,0.3);
+      border-bottom-right-radius: 4px;
     }
     .brow.assistant .bbub {
-      background: var(--purple-dim); border: 1px solid rgba(157,108,255,0.18);
-      border-bottom-left-radius: 2px;
+      background: rgba(155,107,255,0.12); border: 1px solid rgba(155,107,255,0.3);
+      border-bottom-left-radius: 4px;
     }
 
-    /* preview */
-    #previewCard {
-      width: 100%;
-      border: 1px solid rgba(245,158,11,0.25); border-left: 2px solid var(--warning);
-      background: rgba(245,158,11,0.04); border-radius: 10px;
-      padding: 1rem 1.25rem; display: none;
+    @media (max-width: 480px) { .bbub { max-width: 92%; } header { padding-top: 1.1rem; } }
+    @media (prefers-reduced-motion: reduce) {
+      #previewCard { animation: none; }
+      #tcWrap, #tcWrap.open { transition: none; }
     }
-    .prev-title {
-      font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.12em; color: var(--warning); margin-bottom: 0.6rem;
-    }
-    #previewText { white-space: pre-wrap; font-size: 0.875rem; line-height: 1.65; }
-
-    /* session section */
-    #mainSection { display: none; flex-direction: column; align-items: center; gap: 1.1rem; width: 100%; }
-    #mainSection.visible { display: flex; }
-
-    @media (prefers-reduced-motion: reduce) { #halo { visibility: hidden; } }
-    @media (max-width: 480px) { header { padding: 0 1rem; } .bbub { max-width: 92%; } }
   </style>
 </head>
 <body>
 
   <header>
-    <div class="hdr-dot"></div>
     <h1>Besuchsdokumentation</h1>
-    <span class="hdr-badge">AI Core</span>
+    <p>Sprachassistent</p>
   </header>
 
   <main>
+    <!-- Halo: always visible, large and centered -->
+    <div id="stage">
+      <canvas id="halo" aria-label="KI-Statusanzeige" role="img"></canvas>
+      <div id="haloFallback" aria-hidden="true"></div>
+    </div>
+
+    <div class="info" aria-live="polite">
+      <div id="stateLabel">Bereit</div>
+      <p id="statusText">Bereit, wenn du es bist</p>
+    </div>
+
+    <div id="previewCard">
+      <div class="prev-title">Vorschau</div>
+      <div id="previewText"></div>
+    </div>
+
     <!-- Login -->
-    <section id="loginSection" class="card" style="max-width:420px;">
+    <section id="loginSection">
       <div id="credFields" hidden>
         <div class="field">
           <label for="u">Benutzername</label>
@@ -221,38 +260,29 @@
       <div id="loginErr"></div>
     </section>
 
-    <!-- Active session -->
+    <!-- Active session controls -->
     <section id="mainSection">
-
-      <div id="haloWrap">
-        <canvas id="halo" aria-label="KI-Statusanzeige" role="img"></canvas>
-      </div>
-
-      <p id="statusText">Verbinde …</p>
-
       <div class="ctrl-row">
         <button class="btn btn-danger" id="stopBtn"  onclick="stopSession()">Gespräch beenden</button>
         <button class="btn btn-ghost"  id="tcToggle" onclick="toggleTranscript()">Transkript anzeigen</button>
       </div>
-
-      <div id="tcWrap" hidden>
-        <div class="tc-hdr">Transkript</div>
-        <div id="transcript"></div>
-      </div>
-
-      <div id="previewCard">
-        <div class="prev-title">Vorschau</div>
-        <div id="previewText"></div>
-      </div>
-
     </section>
   </main>
 
+  <aside id="tcWrap" aria-hidden="true">
+    <div class="tc-hdr"><span>Transkript</span><button class="tc-close" onclick="toggleTranscript()" aria-label="Schließen">×</button></div>
+    <div id="transcript"></div>
+  </aside>
+
   <script>
     /* =====================================================================
-       AI VOICE HALO  –  WebGL GLSL fragment shader
-       Shader states: 0 = idle  |  1 = listening  |  2 = thinking  |  3 = speaking
-       u_amp: real-time audio amplitude 0–1 (mic or AI output)
+       AI VOICE HALO — WebGL fragment shader (analytic, no noise textures)
+
+       Look: thin glowing core ring + 9 translucent wave ribbons around it.
+       Per-state weights (listen / think / speak) are eased in JS and blended
+       in the shader, so every transition is continuous.
+       Wave phases are accumulated in JS (speed can change without jumps) and
+       wrapped at 2π; the shader only uses integer multiples of them.
     ===================================================================== */
 
     const VERT_SRC = `
@@ -261,211 +291,313 @@
     `
 
     const FRAG_SRC = `
+      #ifdef GL_FRAGMENT_PRECISION_HIGH
+      precision highp float;
+      #else
       precision mediump float;
+      #endif
+
       uniform vec2  u_res;
-      uniform float u_time;
-      uniform float u_amp;
-      uniform float u_state;   /* 0=idle 1=listen 2=think 3=speak */
-      uniform float u_active;  /* 0=no session  1=session open    */
+      uniform vec4  u_ph;   /* wave phases (wrapped 0..2π)                    */
+      uniform vec4  u_w;    /* x=listen y=think z=speak w=active              */
+      uniform vec2  u_amp;  /* x=audio level 0..1, y=error tint 0..1          */
+      uniform float u_t;    /* seconds (wrapped), sparkle twinkle only        */
 
       #define TAU 6.28318530718
 
-      float hash(vec2 p) {
-        p = fract(p * vec2(234.34, 435.345));
-        p += dot(p, p + 34.23);
-        return fract(p.x * p.y);
-      }
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
-      float vnoise(vec2 p) {
-        vec2 i = floor(p), f = fract(p);
-        f = f * f * (3.0 - 2.0 * f);
-        return mix(
-          mix(hash(i),               hash(i + vec2(1.0, 0.0)), f.x),
-          mix(hash(i + vec2(0.0,1.0)), hash(i + vec2(1.0,1.0)), f.x),
-          f.y);
-      }
-
-      float fbm(vec2 p) {
-        float v = 0.0, a = 0.5;
-        for (int i = 0; i < 3; i++) {
-          v += a * vnoise(p);
-          p  = p * 2.1 + vec2(1.7, 9.2);
-          a *= 0.5;
-        }
-        return v;
+      /* cyclic palette: indigo / azure / violet / ice */
+      vec3 pal(float t) {
+        float a  = TAU * t;
+        float s1 = 0.5 + 0.5 * sin(a);
+        float s2 = 0.5 + 0.5 * sin(2.0 * a + 1.0);
+        float s3 = 0.5 + 0.5 * sin(a + 2.5);
+        vec3 c0 = vec3(0.28, 0.22, 1.00);
+        vec3 c1 = vec3(0.16, 0.55, 1.00);
+        vec3 c2 = vec3(0.66, 0.30, 1.00);
+        vec3 c3 = vec3(0.50, 0.82, 1.00);
+        return mix(mix(c0, c1, s1), mix(c2, c3, s2), s3);
       }
 
       void main() {
-        vec2 uv = (gl_FragCoord.xy - u_res * 0.5) / min(u_res.x, u_res.y);
+        vec2  p   = (gl_FragCoord.xy - 0.5 * u_res) / (0.5 * min(u_res.x, u_res.y));
+        float rad = length(p);
+        float ang = atan(p.y, p.x);
 
-        float spd  = 0.22 + u_state * 0.28 + u_amp * 0.7;
-        float dstr = 0.022 + u_state * 0.012 + u_amp * 0.08;
-        float brit = 0.10 + u_active * 0.28 + u_state * 0.09 + u_amp * 0.48;
+        float lvl = u_amp.x;
+        float wL = u_w.x, wT = u_w.y, wS = u_w.z, act = u_w.w;
 
-        float t = u_time * spd;
+        /* breathing + level swell */
+        float R  = 0.56 * (1.0 + 0.008 * sin(u_ph.w) + 0.018 * lvl * (wL + wS));
+        float e0 = rad - R;
+        float a0 = abs(e0);
 
-        /* Single-level domain warp: 2 FBM calls instead of 4 */
-        vec2 q = vec2(fbm(uv * 2.1 + vec2(t*0.09, t*0.05)),
-                      fbm(uv * 2.1 + vec2(t*0.07, t*0.11) + vec2(3.2, 7.1)));
-        vec2 wUV = uv + (q - 0.5) * dstr * 3.5;
+        /* core ring + bloom */
+        float core = exp(-a0 * a0 * 22000.0);
+        float glow = exp(-a0 * 16.0) * 0.30 + exp(-a0 * 5.0) * 0.10;
+        float cph  = fract(ang / TAU + u_ph.z / TAU);
+        vec3  col  = pal(cph);
+        float bri  = 0.55 + 0.45 * act;
+        vec3  c    = (mix(col, vec3(0.85, 0.95, 1.0), 0.55) * core + col * glow) * bri;
 
-        /* Breathing pulse */
-        float pulse = 1.0 + sin(u_time * (0.75 + u_state*0.3)) * (0.012 + u_amp*0.035);
-        float rad   = length(wUV) / pulse;
+        /* ribbons */
+        float pres = clamp(wL * 0.85 + wT + wS, 0.0, 1.0);
+        if (pres > 0.003 && a0 < 0.34) {
+          vec3 acc = vec3(0.0);
+          float aL = 0.028 + 0.085 * lvl;
+          float aT = 0.075;
+          float aS = 0.022 + 0.105 * lvl;
+          for (int k = 0; k < 9; k++) {
+            float f  = float(k);
+            float fk = f / 8.0;
+            float sc = 0.30 + 0.70 * fk;
 
-        /* Ring geometry */
-        float rr   = 0.36;
-        float edge = abs(rad - rr);
-        float ring = pow(smoothstep(0.048, 0.0, edge), 1.3);
-        float hl1  = exp(-edge * 11.0) * 0.55;
-        float hl2  = exp(-edge *  4.5) * 0.12;
-        float inn  = smoothstep(rr + 0.06, 0.0, rad) * 0.05 * u_active;
+            /* listening: soft flowing lobes */
+            float wl = 0.60 * sin(3.0 * ang + u_ph.x + f * 0.80)
+                     + 0.40 * sin(5.0 * ang - u_ph.y + f * 1.30);
+            /* thinking: offset, slowly rotating overlapping rings */
+            float wt = 0.65 * cos(ang - u_ph.z - f * 0.45)
+                     + 0.35 * cos(2.0 * ang + u_ph.y + f * 0.60);
+            /* speaking: dense, energetic lobes */
+            float ws = 0.55 * sin(9.0 * ang + 2.0 * u_ph.x + f * 1.10)
+                     + 0.45 * sin(13.0 * ang - 2.0 * u_ph.y + f * 1.70);
 
-        /* Colour: angle-based gradient that rotates over time */
-        float angle = atan(wUV.y, wUV.x);
-        float cph   = fract(angle/TAU + 0.5 + t*0.055 + q.x*0.22);
+            float d    = (wL * aL * wl + wT * aT * wt + wS * aS * ws) * sc;
+            float e    = rad - (R + d);
+            float line = exp(-e * e * 7000.0);
+            float haze = exp(-abs(e) * 28.0) * 0.06;
+            vec3  lc   = pal(fract(ang / TAU + u_ph.z / TAU * 0.5 + fk * 0.35));
+            acc += lc * (line * 0.38 + haze);
+          }
+          c += acc * pres;
+        }
 
-        vec3 c0 = vec3(0.00, 0.83, 1.00);  /* cyan       */
-        vec3 c1 = vec3(0.08, 0.50, 0.95);  /* blue       */
-        vec3 c2 = vec3(0.55, 0.28, 1.00);  /* blue-violet*/
-        vec3 c3 = vec3(0.72, 0.12, 0.88);  /* magenta    */
+        /* speaking: sparkle dust drifting outside the ring */
+        if (wS > 0.01 && rad > R * 0.95 && rad < 1.0) {
+          vec2  g    = vec2(ang / TAU * 160.0, rad * 70.0);
+          vec2  id   = floor(g);
+          vec2  lcl  = fract(g) - 0.5;
+          float h    = hash(id);
+          float tw   = 0.5 + 0.5 * sin(u_t * (2.0 + h * 3.0) + h * 30.0);
+          float dotv = smoothstep(0.28, 0.0, length(lcl)) * step(0.90, h) * tw;
+          float zone = exp(-max(rad - R - 0.02, 0.0) * 9.0) * smoothstep(R * 0.95, R + 0.03, rad);
+          c += pal(fract(h * 3.0)) * dotv * zone * wS * (0.4 + 0.9 * lvl) * 1.2;
+        }
 
-        float cp4 = cph * 4.0;
-        vec3 col;
-        if     (cp4 < 1.0) col = mix(c0, c1, smoothstep(0.0,1.0, cp4));
-        else if(cp4 < 2.0) col = mix(c1, c2, smoothstep(0.0,1.0, cp4-1.0));
-        else if(cp4 < 3.0) col = mix(c2, c3, smoothstep(0.0,1.0, cp4-2.0));
-        else               col = mix(c3, c0, smoothstep(0.0,1.0, cp4-3.0));
+        /* soft highlight roll-off */
+        c = 1.0 - exp(-c * 1.5);
 
-        vec3 highlight = mix(col, vec3(0.78, 0.94, 1.00), hl1 * 0.38);
-        float alpha    = (ring + hl1 + hl2 + inn) * brit;
-        vec3  final    = mix(col, highlight, hl1/max(ring+hl1,0.001)) * alpha;
+        /* error tint */
+        float lum = dot(c, vec3(0.30, 0.50, 0.20));
+        c = mix(c, vec3(1.0, 0.25, 0.40) * lum * 1.4, u_amp.y);
 
-        gl_FragColor = vec4(final, min(alpha * 1.5, 0.97));
+        /* dither against banding in the glow */
+        float m = max(c.r, max(c.g, c.b));
+        c += (hash(gl_FragCoord.xy) - 0.5) / 255.0 * smoothstep(0.0, 0.02, m);
+
+        gl_FragColor = vec4(c, m);   /* premultiplied: behaves like additive light */
       }
     `
 
-    /* ---- WebGL internals ---- */
-    let gl = null, hProg = null, hUni = {}, hRafId = null, hStart = 0
-    let hCurState = 0, hTgtState = 0
-    let hCurAmp   = 0, hTgtAmp   = 0
-    let hCurAct   = 0, hTgtAct   = 0
-    let hPrevTime = 0
-
-    function initHalo () {
+    const Halo = (() => {
+      const TAU    = Math.PI * 2
       const canvas = document.getElementById('halo')
-      const dpr  = Math.min(window.devicePixelRatio || 1, 1)
-      const size = calcHaloSize()
-      canvas.width  = size * dpr
-      canvas.height = size * dpr
-      canvas.style.width  = size + 'px'
-      canvas.style.height = size + 'px'
+      const stage  = document.getElementById('stage')
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      const coarse = window.matchMedia('(pointer: coarse)').matches
+      const maxDpr = coarse ? 1.5 : 2
+      const motion = reduce ? 0.35 : 1
 
-      gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false, antialias: false })
-      if (!gl) return
-
-      function mkShader (type, src) {
-        const s = gl.createShader(type)
-        gl.shaderSource(s, src); gl.compileShader(s); return s
+      const MODES = {
+        idle:       { L: 0, T: 0,    S: 0, act: 0,   err: 0 },
+        connecting: { L: 0, T: 0.75, S: 0, act: 0.6, err: 0 },
+        listening:  { L: 1, T: 0,    S: 0, act: 1,   err: 0 },
+        thinking:   { L: 0, T: 1,    S: 0, act: 1,   err: 0 },
+        speaking:   { L: 0, T: 0,    S: 1, act: 1,   err: 0 },
+        error:      { L: 0, T: 0,    S: 0, act: 0.5, err: 1 }
       }
-      hProg = gl.createProgram()
-      gl.attachShader(hProg, mkShader(gl.VERTEX_SHADER,   VERT_SRC))
-      gl.attachShader(hProg, mkShader(gl.FRAGMENT_SHADER, FRAG_SRC))
-      gl.linkProgram(hProg); gl.useProgram(hProg)
+      const KEYS = ['L', 'T', 'S', 'act', 'err']
+      const cur  = { L: 0, T: 0, S: 0, act: 0, err: 0 }
+      let tgt = MODES.idle, mode = 'idle'
+      const sources = {}                 /* mode -> { node, buf, gain } */
+      let lvl = 0
+      const ph = [0, 0, 0, 0]
 
-      const buf = gl.createBuffer()
-      gl.bindBuffer(gl.ARRAY_BUFFER, buf)
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW)
-      const loc = gl.getAttribLocation(hProg, 'a_pos')
-      gl.enableVertexAttribArray(loc)
-      gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
+      let gl = null, prog = null, U = {}, raf = 0, last = 0
+      let cssSize = 0, quality = 1, appliedQ = 0
+      let emaDt = 16, frames = 0
 
-      hUni = {
-        res:    gl.getUniformLocation(hProg, 'u_res'),
-        time:   gl.getUniformLocation(hProg, 'u_time'),
-        amp:    gl.getUniformLocation(hProg, 'u_amp'),
-        state:  gl.getUniformLocation(hProg, 'u_state'),
-        active: gl.getUniformLocation(hProg, 'u_active'),
+      function build () {
+        gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false })
+        if (!gl) return false
+
+        const mk = (type, src) => {
+          const s = gl.createShader(type)
+          gl.shaderSource(s, src); gl.compileShader(s)
+          if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+            console.error('Halo shader:', gl.getShaderInfoLog(s)); return null
+          }
+          return s
+        }
+        const vs = mk(gl.VERTEX_SHADER, VERT_SRC), fs = mk(gl.FRAGMENT_SHADER, FRAG_SRC)
+        if (!vs || !fs) return false
+        prog = gl.createProgram()
+        gl.attachShader(prog, vs); gl.attachShader(prog, fs)
+        gl.linkProgram(prog)
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { console.error(gl.getProgramInfoLog(prog)); return false }
+        gl.useProgram(prog)
+
+        const buf = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf)
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW)
+        const loc = gl.getAttribLocation(prog, 'a_pos')
+        gl.enableVertexAttribArray(loc)
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
+
+        U = {}
+        for (const n of ['res', 'ph', 'w', 'amp', 't']) U[n] = gl.getUniformLocation(prog, 'u_' + n)
+        gl.disable(gl.BLEND)
+        gl.clearColor(0, 0, 0, 0)
+        cssSize = 0; appliedQ = 0
+        fit()
+        return true
       }
-      gl.uniform2f(hUni.res, canvas.width, canvas.height)
-      gl.viewport(0, 0, canvas.width, canvas.height)
-      gl.enable(gl.BLEND)
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE) /* additive blending → neon glow */
-      gl.clearColor(0, 0, 0, 0)
 
-      hStart = hPrevTime = performance.now()
+      /* Size the canvas to the stage; backing store scales with `quality`. */
+      function fit () {
+        if (!gl) return
+        const r = stage.getBoundingClientRect()
+        const s = Math.max(200, Math.min(Math.floor(Math.min(r.width, r.height)), 820))
+        if (s === cssSize && quality === appliedQ) return
+        cssSize = s; appliedQ = quality
+        const dpr = Math.min(window.devicePixelRatio || 1, maxDpr) * quality
+        canvas.style.width = canvas.style.height = s + 'px'
+        canvas.width = canvas.height = Math.max(64, Math.round(s * dpr))
+        gl.viewport(0, 0, canvas.width, canvas.height)
+        gl.uniform2f(U.res, canvas.width, canvas.height)
+      }
+
+      function level () {
+        const src = sources[mode]
+        if (!src) return 0
+        src.node.getByteTimeDomainData(src.buf)
+        let sum = 0
+        for (let i = 0; i < src.buf.length; i++) { const v = (src.buf[i] - 128) / 128; sum += v * v }
+        const rms = Math.sqrt(sum / src.buf.length)
+        return Math.pow(Math.min(Math.max((rms - 0.006) * src.gain, 0), 1), 0.75)
+      }
 
       function frame (now) {
-        hRafId = requestAnimationFrame(frame)
-        const dt = Math.min((now - hPrevTime) * 0.001, 0.1)
-        hPrevTime = now
+        raf = requestAnimationFrame(frame)
+        const dtRaw = (now - last) * 0.001
+        last = now
+        const dt = Math.min(dtRaw, 0.1)
 
-        const lrpS  = 1 - Math.exp(-dt * 2.5)
-        const lrpAu = 1 - Math.exp(-dt * 55)
-        const lrpAd = 1 - Math.exp(-dt *  4)
-        const lrpA  = hTgtAmp >= hCurAmp ? lrpAu : lrpAd
+        /* adaptive resolution: only ever steps down, never flaps */
+        if (dtRaw > 0 && dtRaw < 0.1) {
+          emaDt += (dtRaw * 1000 - emaDt) * 0.05
+          if (++frames > 90 && emaDt > 26 && quality > 0.55) {
+            quality = Math.max(0.55, quality * 0.8); frames = 0; emaDt = 16; fit()
+          }
+        }
 
-        hCurState += (hTgtState - hCurState) * lrpS
-        hCurAmp   += (hTgtAmp   - hCurAmp)   * lrpA
-        hCurAct   += (hTgtAct   - hCurAct)   * lrpS
+        const kw = 1 - Math.exp(-dt * 4.2)
+        for (const k of KEYS) cur[k] += (tgt[k] - cur[k]) * kw
 
-        gl.clear(gl.COLOR_BUFFER_BIT)
-        gl.uniform1f(hUni.time,   (now - hStart) * 0.001)
-        gl.uniform1f(hUni.amp,    hCurAmp)
-        gl.uniform1f(hUni.state,  hCurState)
-        gl.uniform1f(hUni.active, hCurAct)
+        const target = level()
+        lvl += (target - lvl) * (1 - Math.exp(-dt * (target > lvl ? 32 : 7)))
+
+        const sp = motion * (0.35 + 0.5 * cur.L + 0.9 * cur.T + 1.1 * cur.S + 1.6 * lvl)
+        ph[0] = (ph[0] + dt * sp)                              % TAU
+        ph[1] = (ph[1] + dt * sp * 0.73)                       % TAU
+        ph[2] = (ph[2] + dt * motion * (0.10 + 0.75 * cur.T + 0.10 * cur.act)) % TAU
+        ph[3] = (ph[3] + dt * motion * 0.9)                    % TAU
+
+        gl.uniform4f(U.ph, ph[0], ph[1], ph[2], ph[3])
+        gl.uniform4f(U.w, cur.L, cur.T, cur.S, cur.act)
+        gl.uniform2f(U.amp, lvl, cur.err)
+        gl.uniform1f(U.t, (now * 0.001) % 1000)
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+
+        if (Halo.onFrame) Halo.onFrame()
       }
-      frame(hStart)
-    }
 
-    function calcHaloSize () {
-      return Math.min(Math.max(Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.58), 220), 420)
-    }
+      function start () {
+        cancelAnimationFrame(raf)
+        last = performance.now()
+        raf = requestAnimationFrame(frame)
+      }
 
-    function resizeHalo () {
-      if (!gl) return
-      const canvas = document.getElementById('halo')
-      const dpr  = Math.min(window.devicePixelRatio || 1, 1)
-      const size = calcHaloSize()
-      canvas.width  = size * dpr; canvas.height = size * dpr
-      canvas.style.width  = size + 'px'; canvas.style.height = size + 'px'
-      gl.uniform2f(hUni.res, canvas.width, canvas.height)
-      gl.viewport(0, 0, canvas.width, canvas.height)
-    }
-    window.addEventListener('resize', resizeHalo)
+      function init () {
+        if (!build()) { document.body.classList.add('no-gl'); return }
+        document.body.classList.remove('no-gl')
+        start()
+      }
 
-    const HALO_STATE_MAP = { idle: 0, connecting: 0.4, ready: 1.0, listening: 2.0, speaking: 3.0, error: 0.2 }
+      canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); cancelAnimationFrame(raf) })
+      canvas.addEventListener('webglcontextrestored', () => init())
+      if (typeof ResizeObserver !== 'undefined') new ResizeObserver(fit).observe(stage)
+      else window.addEventListener('resize', fit)
 
-    function setHaloState (state) {
-      hTgtState = HALO_STATE_MAP[state] ?? 0
-      hTgtAct   = (state === 'idle') ? 0 : 1
-    }
+      return {
+        init,
+        onFrame: null,
+        setMode (m) { mode = m; tgt = MODES[m] || MODES.idle },
+        /* mode -> AnalyserNode that drives the audio level in that mode */
+        setSource (m, node, gain) {
+          if (!node) { delete sources[m]; return }
+          sources[m] = { node, buf: new Uint8Array(node.fftSize), gain }
+        }
+      }
+    })()
 
     /* =====================================================================
        APP  –  WebSocket, audio, session lifecycle
     ===================================================================== */
 
-    let ws = null, audioCtx = null, micStream = null, scriptProc = null
-    let nextPlayAt = 0, stopping = false, speakingTimer = null
+    const $ = (id) => document.getElementById(id)
+    let ws = null, audioCtx = null, micStream = null, scriptProc = null, micAn = null, outAn = null
+    let nextPlayAt = 0, stopping = false
     let tcVisible = false
 
-    function setStatusState (state, text) {
-      setHaloState(state)
-      const defaults = {
-        connecting: 'Verbinde …', ready: 'Bereit — bitte sprechen',
-        listening: 'Verarbeite …', speaking: 'Assistent spricht', error: 'Fehler'
-      }
-      document.getElementById('statusText').textContent = text ?? defaults[state] ?? state
+    /* app state -> halo mode, label, default sub-text */
+    const STATES = {
+      idle:       { mode: 'idle',       label: 'Bereit',     sub: 'Bereit, wenn du es bist' },
+      connecting: { mode: 'connecting', label: 'Verbinde',   sub: 'Verbinde …' },
+      ready:      { mode: 'listening',  label: 'Zuhören',    sub: 'Ich höre zu — bitte sprechen' },
+      thinking:   { mode: 'thinking',   label: 'Denkt nach', sub: 'Einen Moment …' },
+      speaking:   { mode: 'speaking',   label: 'Spricht',    sub: 'Assistent spricht' },
+      error:      { mode: 'error',      label: 'Fehler',     sub: 'Fehler' }
+    }
+    let curState = '', curSub = '', readySub = null
+
+    function swap (el, text) {
+      el.textContent = text
+      if (el.animate) el.animate(
+        [{ opacity: 0, transform: 'translateY(5px)' }, { opacity: 1, transform: 'none' }],
+        { duration: 320, easing: 'cubic-bezier(.2,.8,.2,1)' })
     }
 
-    function loginErr (msg) { document.getElementById('loginErr').textContent = msg }
+    function setStatusState (state, text) {
+      const st  = STATES[state]
+      const sub = text ?? st.sub
+      Halo.setMode(st.mode)
+      if (state !== curState) swap($('stateLabel'), st.label)
+      if (sub !== curSub || state !== curState) swap($('statusText'), sub)
+      document.body.classList.toggle('is-error', state === 'error')
+      if (state === 'ready' && text != null) readySub = text
+      curState = state; curSub = sub
+    }
+
+    function loginErr (msg) { $('loginErr').textContent = msg }
 
     function toggleTranscript () {
       tcVisible = !tcVisible
-      document.getElementById('tcWrap').hidden = !tcVisible
-      document.getElementById('tcToggle').textContent =
-        tcVisible ? 'Transkript ausblenden' : 'Transkript anzeigen'
+      const wrap = $('tcWrap')
+      wrap.classList.toggle('open', tcVisible)
+      wrap.setAttribute('aria-hidden', String(!tcVisible))
+      $('tcToggle').textContent = tcVisible ? 'Transkript ausblenden' : 'Transkript anzeigen'
     }
 
     function addTranscript (role, text) {
@@ -478,36 +610,33 @@
       bub.className = 'bbub'
       bub.textContent = String(text)
       row.appendChild(lbl); row.appendChild(bub)
-      const tc = document.getElementById('transcript')
+      const tc = $('transcript')
       tc.appendChild(row)
-      row.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      tc.scrollTo({ top: tc.scrollHeight, behavior: 'smooth' })
     }
 
-    /* ---- Audio playback: PCM16 → AudioContext ---- */
+    /* ---- Audio playback: PCM16 → AudioContext (level read from outAn) ---- */
 
     function playPcm16 (buf) {
       if (!audioCtx) return
       const i16 = new Int16Array(buf)
-
-      let rms = 0
-      for (let i = 0; i < i16.length; i++) rms += (i16[i] / 32768) ** 2
-      hTgtAmp = Math.min(Math.sqrt(rms / i16.length) * 6, 1.0)
-
       const ab  = audioCtx.createBuffer(1, i16.length, 24000)
       const f32 = ab.getChannelData(0)
       for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 32768
       const src = audioCtx.createBufferSource()
-      src.buffer = ab; src.connect(audioCtx.destination)
+      src.buffer = ab; src.connect(outAn)
       const now = audioCtx.currentTime
       const t   = Math.max(now + 0.04, nextPlayAt)
       src.start(t); nextPlayAt = t + ab.duration
+      if (curState !== 'speaking') setStatusState('speaking')
+    }
 
-      setStatusState('speaking')
-      clearTimeout(speakingTimer)
-      speakingTimer = setTimeout(() => {
-        hTgtAmp = 0
-        if (ws && ws.readyState === WebSocket.OPEN) setStatusState('ready')
-      }, 700)
+    /* back to "listening" as soon as the scheduled audio has really finished */
+    Halo.onFrame = () => {
+      if (curState === 'speaking' && audioCtx && audioCtx.currentTime > nextPlayAt + 0.35 &&
+          ws && ws.readyState === WebSocket.OPEN) {
+        setStatusState('ready', readySub ?? undefined)
+      }
     }
 
     /* ---- Microphone: Float32 → PCM16 ---- */
@@ -521,55 +650,62 @@
         video: false
       })
       audioCtx   = new AudioContext({ sampleRate: 24000 })
+      if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {})
       nextPlayAt = 0
+
+      micAn = audioCtx.createAnalyser(); micAn.fftSize = 512; micAn.smoothingTimeConstant = 0
+      outAn = audioCtx.createAnalyser(); outAn.fftSize = 512; outAn.smoothingTimeConstant = 0
+      outAn.connect(audioCtx.destination)
+      Halo.setSource('listening', micAn, 14)
+      Halo.setSource('speaking',  outAn, 6)
 
       const src  = audioCtx.createMediaStreamSource(micStream)
       scriptProc = audioCtx.createScriptProcessor(4096, 1, 1)
 
       scriptProc.onaudioprocess = (e) => {
-        const f32 = e.inputBuffer.getChannelData(0)
-
-        if (hTgtState <= 1.5) { /* listening state: show mic level */
-          let rms = 0
-          for (let i = 0; i < f32.length; i++) rms += f32[i] * f32[i]
-          hTgtAmp = Math.min(Math.sqrt(rms / f32.length) * 14, 1.0)
-        }
-
         if (!ws || ws.readyState !== WebSocket.OPEN) return
+        const f32 = e.inputBuffer.getChannelData(0)
         const i16 = new Int16Array(f32.length)
         for (let i = 0; i < f32.length; i++)
           i16[i] = Math.max(-32768, Math.min(32767, Math.round(f32[i] * 32767)))
         ws.send(i16.buffer)
       }
+      src.connect(micAn)
       src.connect(scriptProc)
       scriptProc.connect(audioCtx.destination)
     }
 
     function stopAudio () {
-      clearTimeout(speakingTimer)
-      hTgtAmp = 0
+      Halo.setSource('listening', null); Halo.setSource('speaking', null)
       if (scriptProc) { try { scriptProc.disconnect() } catch {} scriptProc = null }
       if (micStream)  { micStream.getTracks().forEach(t => t.stop()); micStream = null }
       if (audioCtx)   { try { audioCtx.close() } catch {} audioCtx = null }
+      micAn = outAn = null
     }
 
     /* ---- Session lifecycle ---- */
 
+    function showLogin () {
+      $('loginSection').hidden = false
+      $('mainSection').classList.remove('visible')
+      $('startBtn').disabled = false
+    }
+
     async function startSession () {
       loginErr('')
-      document.getElementById('startBtn').disabled = true
-      const credFields = document.getElementById('credFields')
+      $('startBtn').disabled = true
+      const credFields = $('credFields')
 
       const headers = {}
       let devUserParam = ''
       if (!credFields.hidden) {
-        const user = document.getElementById('u').value.trim()
+        const user = $('u').value.trim()
         if (!user) {
           loginErr('Bitte Benutzernamen eingeben.')
-          document.getElementById('startBtn').disabled = false
+          $('startBtn').disabled = false
           return
         }
-        headers['Authorization'] = 'Basic ' + btoa(user + ':' + document.getElementById('p').value)
+        headers['Authorization'] = 'Basic ' + btoa(user + ':' + $('p').value)
         devUserParam = user
       }
 
@@ -579,34 +715,31 @@
         if (res.status === 401 && credFields.hidden) {
           credFields.hidden = false
           loginErr('Bitte Zugangsdaten eingeben (Entwicklungsmodus).')
-          document.getElementById('startBtn').disabled = false
+          $('startBtn').disabled = false
           return
         }
         if (res.status === 401 && devUserParam)
           res = await fetch('/api/voice-token?_dev_user=' + encodeURIComponent(devUserParam))
         if (!res.ok) {
           loginErr('Anmeldung fehlgeschlagen (' + res.status + ').')
-          document.getElementById('startBtn').disabled = false
+          $('startBtn').disabled = false
           return
         }
         token = (await res.json()).token
       } catch (err) {
         loginErr('Verbindungsfehler: ' + err.message)
-        document.getElementById('startBtn').disabled = false
+        $('startBtn').disabled = false
         return
       }
 
-      document.getElementById('loginSection').hidden = true
-      const mainSec = document.getElementById('mainSection')
-      mainSec.classList.add('visible')
-      document.getElementById('transcript').innerHTML  = ''
-      document.getElementById('previewCard').style.display = 'none'
-      document.getElementById('previewText').textContent   = ''
-      document.getElementById('stopBtn').disabled = false
-      stopping   = false
-      tcVisible  = false
-      document.getElementById('tcWrap').hidden       = true
-      document.getElementById('tcToggle').textContent = 'Transkript anzeigen'
+      $('loginSection').hidden = true
+      $('mainSection').classList.add('visible')
+      $('transcript').innerHTML = ''
+      $('previewCard').style.display = 'none'
+      $('previewText').textContent   = ''
+      $('stopBtn').disabled = false
+      stopping = false; readySub = null
+      if (tcVisible) toggleTranscript()
 
       setStatusState('connecting')
 
@@ -614,10 +747,9 @@
         await startMicrophone()
       } catch (err) {
         stopAudio()
-        document.getElementById('loginSection').hidden = false
-        mainSec.classList.remove('visible')
+        showLogin()
+        setStatusState('idle')
         loginErr('Mikrofonzugriff verweigert: ' + err.message)
-        document.getElementById('startBtn').disabled = false
         return
       }
 
@@ -643,10 +775,10 @@
           setStatusState('ready')
         } else if (msg.type === 'transcript') {
           addTranscript(msg.role, msg.text)
-          if (msg.role === 'user') setStatusState('listening', 'Verarbeite …')
+          if (msg.role === 'user') { readySub = null; setStatusState('thinking', 'Verarbeite …') }
         } else if (msg.type === 'commit_preview') {
-          document.getElementById('previewText').textContent = msg.previewText ?? ''
-          document.getElementById('previewCard').style.display = 'block'
+          $('previewText').textContent = msg.previewText ?? ''
+          $('previewCard').style.display = 'block'
           setStatusState('ready', 'Vorschau — bitte bestätigen oder ablehnen')
         } else if (msg.type === 'done') {
           const ok = msg.status === 'COMPLETED'
@@ -664,33 +796,26 @@
       ws.onclose = () => {
         stopAudio(); ws = null
         setStatusState('idle')
-        const delay = stopping ? 0 : 1800
-        setTimeout(() => {
-          document.getElementById('loginSection').hidden = false
-          document.getElementById('mainSection').classList.remove('visible')
-          document.getElementById('startBtn').disabled = false
-        }, delay)
+        setTimeout(showLogin, stopping ? 0 : 1800)
       }
     }
 
     function stopSession () {
       stopping = true
-      document.getElementById('stopBtn').disabled = true
+      $('stopBtn').disabled = true
       setStatusState('connecting', 'Sitzung wird beendet …')
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'stop' }))
       } else {
         stopAudio(); ws = null
         setStatusState('idle')
-        document.getElementById('loginSection').hidden = false
-        document.getElementById('mainSection').classList.remove('visible')
-        document.getElementById('startBtn').disabled = false
+        showLogin()
       }
     }
 
     /* ---- Boot ---- */
-    initHalo()
-    setHaloState('idle')
+    Halo.init()
+    setStatusState('idle')
   </script>
 </body>
 </html>
