@@ -28,7 +28,7 @@
 
 # Open privacy decisions
 
-## P1 – Transcript retention and user notice (provisional)
+## P1 – Transcript retention (provisional) and user notice (none)
 
 - **Date:** 2026-11-16
 - **Decided:** Audio is **not** stored. It is only processed live.
@@ -36,5 +36,5 @@
   - The transcript is kept in HANA only until the commit to C4C succeeds, then deleted. In C4C it remains as a PDF attachment on the Visit.
   - Sessions that are not completed are deleted after 7 days.
   - The audit log stores only metadata: who, when, which Visit, which Task IDs, outcome. It stores no conversation content.
-  - The assistant gives a short spoken notice at session start (AI processing, transcript saved on the Visit). No explicit consent step.
-- **To confirm before production:** the retention periods and whether the notice or a consent is required.
+- **Decided 2026-11-25:** The assistant gives **no** spoken privacy notice at session start (removed on user request), and there is no consent step.
+- **To confirm before production:** the retention periods and whether data protection / works council require a notice or a consent despite this decision.

@@ -45,7 +45,6 @@ describe('Phase 6 – system prompt', () => {
     assert.ok(typeof SYSTEM_PROMPT === 'string' && SYSTEM_PROMPT.length > 100)
     assert.ok(SYSTEM_PROMPT.includes('confirmCommit'), 'prompt must reference confirmCommit')
     assert.ok(SYSTEM_PROMPT.includes('NIEMALS'), 'prompt must contain the "no new visits" rule')
-    assert.ok(SYSTEM_PROMPT.includes('Datenschutz'), 'prompt must contain the privacy notice instruction')
   })
 })
 
