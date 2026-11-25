@@ -70,9 +70,7 @@ resources:
       service-plan: lite
 
   # --- AI Core (existing service instance in space AI_DEV) ------------------
-  # TODO: Replace 'aicore-instance' with the actual AI Core service instance name.
-  #       Ask the user for the name of the AI Core instance in space AI_DEV.
   - name: aiAssistedVisitDocumentation-aicore
     type: org.cloudfoundry.existing-service
     parameters:
-      service-name: aicore-instance
+      service-name: aicore

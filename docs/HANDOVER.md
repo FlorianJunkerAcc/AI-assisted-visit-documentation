@@ -1,6 +1,6 @@
 # Übergabe: Voice-Assistent zur Visit-Dokumentation (SAP CAP + SAP Sales Cloud V1)
 
-Stand: 24.11.2026. Phasen 1–9 sind implementiert. 76 Tests erwartet grün (noch nicht in BAS ausgeführt). App läuft lokal, E2E mit echtem AI Core und Deployment auf BTP stehen aus.
+Stand: 25.11.2026. Phasen 1–9 sind implementiert. 75 Tests erwartet grün (noch nicht in BAS ausgeführt). App läuft lokal, E2E mit echtem AI Core und Deployment auf BTP stehen aus.
 
 ---
 
@@ -70,7 +70,7 @@ Die Quellen liegen in `docs/c4c-metadata/`, die Konstanten in `srv/lib/c4c-codes
 
 | Datei | Inhalt |
 |---|---|
-| `package.json` | CAP 10 (ESM). Abhängigkeiten: `@cap-js/sqlite` (`:memory:`), `pdf-lib ^1.17.1`, `@sap-ai-sdk/openai ^2.15.0`, `ws ^8`, `@sap/xssec ^3`. Mock-User: alice und carol mit Rolle `VisitDocumenter`, bob ohne Rolle. `cds.voice` enthält AI-Core-Konfiguration. `[production].auth.kind = xsuaa`. |
+| `package.json` | CAP 10 (ESM). Abhängigkeiten: `@cap-js/sqlite` (`:memory:`), `pdf-lib ^1.17.1`, `@sap-ai-sdk/openai ^2.15.0`, `ws ^8`, `@sap/xssec ^3`. Mock-User: alice und carol mit Rolle `VisitDocumenter`, bob ohne Rolle. `cds.voice` enthält AI-Core-Konfiguration. `[production].auth.kind = xsuaa`. `[development]` und `[hybrid]` verwenden beide mocked-Auth mit denselben Usern (hybrid für `cds watch --profile hybrid`). |
 | `db/schema.cds` | VoiceSessions, TranscriptEntries, VisitDrafts, TaskDrafts, CommitConfirmations, CommitOperations (Idempotenz, eindeutiger `idempotencyKey`) und AuditLog. Konvention: `c4c*` = von CAP geprüft, `proposed*` = Vorschlag der KI. |
 | `srv/voice-service.cds` | `VoiceAssistantService`, `@protocol:'none'` (nicht über HTTP erreichbar), `@requires:'VisitDocumenter'`. Alle Tools geben `ToolResult {ok, code, message, data(JSON)}` zurück. |
 | `srv/voice-service.js` | Alle 10 Tools vollständig implementiert (kein 501 mehr): startSession, cancelSession, findVisit, selectVisit, getVisitContext, resolveEmployee, updateVisitDraft, addTaskDraft, updateTaskDraft, removeTaskDraft, prepareCommitPreview, confirmCommit. `runCommit` führt alle C4C-Writes synchron mit Idempotenzprüfung aus. |
@@ -82,14 +82,14 @@ Die Quellen liegen in `docs/c4c-metadata/`, die Konstanten in `srv/lib/c4c-codes
 | `srv/lib/c4c-codes.js` | alle bestätigten Code-Werte mit Quellenangabe |
 | `srv/lib/time.js` | Tagesgrenzen in der Zeitzone (inklusive Zeitumstellung), OData-Datumswerte |
 | `srv/lib/validation.js`, `srv/lib/tool-result.js` | Eingabeprüfung und Ergebnisformat |
-| `app/index.html` | Einzel-Datei-UI ohne externe Dependencies. Login-Formular (Token-Anfrage), WebSocket, PCM16-Mikrofon via `ScriptProcessorNode`, PCM16-Wiedergabe via `AudioContext`, Status- und Transkriptanzeige. |
+| `app/index.html` | Einzel-Datei-UI ohne externe Dependencies. Credentials-Felder sind standardmäßig versteckt; bei 401 auf `/api/voice-token` erscheinen sie automatisch (Entwicklungsmodus). In Produktion (App Router + XSUAA) werden sie nie angezeigt. WebSocket, PCM16-Mikrofon via `ScriptProcessorNode`, PCM16-Wiedergabe via `AudioContext`. |
 | `app/xs-app.json` | App-Router-Routing: `/api/voice-token` → XSUAA-Authentifizierung, `/ws/voice` → kein Auth + WebSocket-Upgrade, `/api/*` → XSUAA, `/*` → statische Dateien aus `app/`. |
 | `app/package.json` | App-Router-Abhängigkeit: `@sap/approuter ^16`. |
-| `mta.yaml` | Deployment-Deskriptor: CAP srv-Modul (1 Instanz, 512 MB), App-Router-Modul (1 Instanz, 128 MB). Ressourcen: XSUAA (xsuaa/application, `xs-security.json`), Destination (destination/lite), AI Core (existing-service, Platzhalter `aicore-instance` → **muss angepasst werden**). Kein HDI, kein HDB-Deployer. |
+| `mta.yaml` | Deployment-Deskriptor: CAP srv-Modul (1 Instanz, 512 MB), App-Router-Modul (1 Instanz, 128 MB). Ressourcen: XSUAA (xsuaa/application, `xs-security.json`), Destination (destination/lite), AI Core (existing-service `aicore`). Kein HDI, kein HDB-Deployer. |
 | `xs-security.json` | XSUAA-Konfiguration: Scope `VisitDocumenter`, RoleTemplate `VisitDocumenter`, RoleCollection `VisitDocumenter`. Token-Gültigkeit 12 h, Refresh-Token 30 Tage. |
 | `test/phase1-foundation.test.js` | 8 Tests, **grün in BAS** |
 | `test/phase2-c4c-read.test.js` | 18 Tests, **grün in BAS** |
-| `test/phase3-draft.test.js` | 19 Tests, **grün in BAS** |
+| `test/phase3-draft.test.js` | 19 Tests, noch nicht in BAS nach letztem `git pull` ausgeführt |
 | `test/phase4-tasks.test.js` | 15 Tests, **grün in BAS** |
 | `test/phase5-commit.test.js` | 8 Tests, **grün in BAS** |
 | `test/phase6-bridge.test.js` | 7 Tests (Tool-Definitionen, Prompt, Token-Generierung), **noch nicht in BAS ausgeführt** |
@@ -102,16 +102,16 @@ Die Quellen liegen in `docs/c4c-metadata/`, die Konstanten in `srv/lib/c4c-codes
 
 ### Kurzfristig (in BAS erledigen)
 
-1. **76 Tests in BAS ausführen:**
+1. **75 Tests in BAS ausführen:**
    ```bash
    git pull
    npm install
+   npm install --prefix app
    npm test
    ```
-   Erwartet: 76 Tests grün (Phasen 1–6). Anschließend `package-lock.json` committen und pushen.
+   Erwartet: 75 Tests grün (Phasen 1–6). Anschließend `package-lock.json` und `app/package-lock.json` committen und pushen.
 
-2. **AI-Core-Instanzname in `mta.yaml` eintragen:**
-   Zeile `service-name: aicore-instance` → echten Namen der AI-Core-Instanz im Space `AI_DEV` eintragen.
+2. **AI-Core-Instanzname in `mta.yaml` eingetragen:** `aicore` ✅
 
 ### Mittelfristig
 
