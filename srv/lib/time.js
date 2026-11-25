@@ -48,10 +48,6 @@ export function parseODataDate (value) {
   return isNaN(d) ? null : d
 }
 
-/** OData V2 literal for an Edm.DateTime filter value (C4C uses Edm.DateTime, not DateTimeOffset). */
-export const datetimeLiteral = (date) =>
-  `datetime'${date.toISOString().replace(/\.\d{3}Z$/, '')}'`
-
 /** "HH:mm" of `date` in `tz`. */
 export function formatLocalTime (tz, date) {
   if (!date) return null

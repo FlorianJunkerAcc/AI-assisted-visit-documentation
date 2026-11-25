@@ -3,7 +3,7 @@
 // The AI never reaches this module directly – only VoiceAssistantService does.
 import cds from '@sap/cds'
 import { ENTITY_SETS, VISIT_STATUS, TASK, TASK_BTD_REFERENCE, VISIT_ATTACHMENT } from './c4c-codes.js'
-import { datetimeLiteral, parseODataDate } from './time.js'
+import { parseODataDate } from './time.js'
 
 const LOG = cds.log('c4c')
 
@@ -101,13 +101,14 @@ export const isOwnerOrOrganizer = (visit, email) =>
   sameEmail(visit.ownerEmail, email) || sameEmail(visit.organizerEmail, email)
 
 /**
- * Open Visits starting in [start, end) where `email` is Owner OR Organizer.
+ * Open Visits where `email` is Owner OR Organizer, filtered client-side to [start, end).
  * C4C rejects "or" across different properties, so two queries are merged.
+ * Note: StartDateTime (Edm.DateTimeOffset) range filter is applied client-side because
+ * C4C's ABAP OData layer rejects datetimeoffset/datetime literals in ge/lt comparisons.
  */
 export async function findOpenVisitsForUser (email, { start, end }) {
-  const timeFilter = `StartDateTime ge ${datetimeLiteral(start)} and StartDateTime lt ${datetimeLiteral(end)}`
   const queries = ['OwnerEmailURI', 'OrganizerEmailURI'].map(prop => buildPath(ENTITY_SETS.visit, {
-    $filter: `${prop} eq ${str(email)} and Status eq ${str(VISIT_STATUS.OPEN)} and ${timeFilter}`,
+    $filter: `${prop} eq ${str(email)} and Status eq ${str(VISIT_STATUS.OPEN)}`,
     $select: VISIT_SELECT,
     $top: 50,
     $format: 'json'
@@ -116,7 +117,10 @@ export async function findOpenVisitsForUser (email, { start, end }) {
   const byId = new Map()
   for (const row of results.flatMap(rowsOf)) {
     const v = mapVisit(row)
-    if (!v.markedForDeletion && v.status === VISIT_STATUS.OPEN) byId.set(v.objectID, v)
+    if (!v.markedForDeletion && v.status === VISIT_STATUS.OPEN &&
+        v.start && v.start >= start && v.start < end) {
+      byId.set(v.objectID, v)
+    }
   }
   return [...byId.values()].sort((a, b) => (a.start ?? 0) - (b.start ?? 0))
 }
