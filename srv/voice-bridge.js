@@ -154,6 +154,28 @@ async function handleVoiceConnection (ws, userInfo) {
 
     attachAiHandlers(aiClient)
 
+    // Wait for session.created: AI Core confirms the initial session setup.
+    // createClient resolves when the WebSocket opens – before session.created fires –
+    // so the listener below is guaranteed to catch the event (same pattern as the spike).
+    // Without this wait, session.update is sent while the socket is still CONNECTING
+    // and is silently discarded, leaving the model with default (generic) instructions.
+    try {
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('session.created timeout')), 20_000)
+        let done = false
+        aiClient.on('session.created', () => {
+          if (!done) { done = true; clearTimeout(timer); resolve() }
+        })
+      })
+    } catch (err) {
+      LOG.error('AI Core session.created timeout', { message: err.message, sessionId })
+      send({ type: 'error', code: 'AICORE_TIMEOUT', message: 'AI Core did not respond in time.' })
+      try { await callTool('cancelSession') } catch {}
+      sessionId = null
+      if (aiClient) { try { aiClient.close() } catch {} aiClient = null }
+      return
+    }
+
     const transcriptionModel = cds.env.voice?.aicore?.transcriptionModel ?? 'whisper-1'
 
     // Two-step session init mirrors the proven spike pattern:
