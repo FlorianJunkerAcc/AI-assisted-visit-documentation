@@ -1,278 +1,188 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#02030a">
+  <meta name="color-scheme" content="light dark">
   <title>Besuchsdokumentation</title>
+
+  <!-- Theme before first paint (no flash). Real Horizon theme is applied by UI5 after load. -->
+  <script>
+    (function () {
+      var t = null
+      try { t = localStorage.getItem('visit-theme') } catch (e) {}
+      if (t !== 'light' && t !== 'dark') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      document.documentElement.setAttribute('data-theme', t)
+    })()
+  </script>
+
+  <!-- SAP Fiori / Horizon: official UI5 Web Components, bundled locally (npm run build:ui) -->
+  <script type="module" src="ui5.bundle.js"></script>
+
   <style>
-    :root {
-      --bg:         #02030a;
-      --text:       #eef0ff;
-      --text-soft:  rgba(200,208,255,0.64);
-      --text-dim:   rgba(170,180,240,0.38);
-      --line:       rgba(150,160,255,0.16);
-      --surface:    rgba(120,130,255,0.045);
-      --indigo:     #5b5bff;
-      --violet:     #9b6bff;
-      --azure:      #3aa0ff;
-      --ice:        #bfe6ff;
-      --warning:    #f5b14a;
-      --error:      #ff5c7c;
-      --ease:       cubic-bezier(.2,.8,.2,1);
-    }
-
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     [hidden] { display: none !important; }
+    *, *::before, *::after { box-sizing: border-box; }
+    html[data-theme="light"] { background: #f5f6f7; }
+    html[data-theme="dark"]  { background: #12171c; }
 
-    html { background: var(--bg); }
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-      font-weight: 300;
-      color: var(--text);
-      min-height: 100dvh;
+      margin: 0; min-height: 100dvh;
       display: flex; flex-direction: column;
+      font-family: var(--sapFontFamily, '72', '72full', Arial, Helvetica, sans-serif);
+      font-size: var(--sapFontSize, 0.875rem);
+      color: var(--sapTextColor, #1d2d3e);
+      background: var(--sapBackgroundColor, #f5f6f7);
+    }
+
+    /* ---------- Page (Fiori spacing: 1rem / 2rem content padding) ---------- */
+    .page {
+      flex: 1; width: 100%; max-width: 90rem; margin: 0 auto;
+      padding: 1rem 1rem 2rem;
+    }
+    @media (min-width: 600px)  { .page { padding: 1.5rem 2rem 2rem; } }
+    .page-header { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 1rem; }
+    .page-header ui5-text { color: var(--sapContent_LabelColor); }
+
+    .layout { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
+    @media (min-width: 1024px) {
+      .layout { grid-template-columns: minmax(0, 7fr) minmax(20rem, 4fr); align-items: start; }
+    }
+    .side { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+
+    /* ---------- Voice interaction area: always dark, independent of the theme ---------- */
+    .voice {
+      position: relative; display: flex; flex-direction: column; overflow: hidden;
+      min-height: clamp(26rem, 70dvh, 48rem);
       background:
-        radial-gradient(55% 45% at 50% 44%, rgba(70,62,210,0.11) 0%, transparent 70%),
-        var(--bg);
-      -webkit-font-smoothing: antialiased;
+        radial-gradient(55% 45% at 50% 42%, rgba(70, 62, 210, 0.14) 0%, transparent 70%),
+        #02030a;
+      border-radius: var(--sapElement_BorderCornerRadius, 0.75rem);
+      box-shadow: var(--sapContent_Shadow0, 0 0 0 0.0625rem rgba(85, 107, 129, 0.25));
+      /* make the UI5 text components readable on the dark surface in every theme */
+      --sapTextColor: #eef0ff;
+      --sapGroup_TitleTextColor: #ffffff;
+      --sapContent_LabelColor: rgba(200, 208, 255, 0.72);
     }
+    body.is-error .voice { --sapGroup_TitleTextColor: #ffc2cf; }
 
-    /* ---------- header (no backdrop-filter: keeps the GPU free for the halo) ---------- */
-    header {
-      flex-shrink: 0; text-align: center;
-      padding: 1.5rem 1rem 0.2rem;
-    }
-    header h1 {
-      font-size: 0.78rem; font-weight: 400; color: var(--text);
-      letter-spacing: 0.42em; text-transform: uppercase; padding-left: 0.42em;
-    }
-    header p {
-      margin-top: 0.55rem; font-size: 0.62rem; color: var(--text-dim);
-      letter-spacing: 0.34em; text-transform: uppercase; padding-left: 0.34em;
-    }
-
-    /* ---------- layout ---------- */
-    main {
-      flex: 1; display: flex; flex-direction: column; align-items: center;
-      width: 100%; max-width: 720px; margin: 0 auto;
-      padding: 0 1rem calc(1.6rem + env(safe-area-inset-bottom));
-    }
-
-    /* halo stage: large, centered. Canvas is absolutely positioned so it never
-       feeds back into the layout (no resize loops). */
-    #stage {
-      position: relative; flex: 1 1 0; min-height: 260px; width: 100%;
-    }
-    #halo {
-      position: absolute; inset: 0; margin: auto; display: block;
-      pointer-events: none;
-    }
+    #stage { position: relative; flex: 1 1 0; min-height: 18rem; }
+    #halo { position: absolute; inset: 0; margin: auto; display: block; pointer-events: none; }
     #haloFallback {
       display: none; position: absolute; inset: 0; margin: auto;
-      width: 58%; max-width: 420px; aspect-ratio: 1; border-radius: 50%;
-      border: 2px solid rgba(150,150,255,0.9);
-      box-shadow: 0 0 40px rgba(91,91,255,0.55), inset 0 0 40px rgba(91,91,255,0.25);
+      width: 58%; max-width: 26rem; aspect-ratio: 1; border-radius: 50%;
+      border: 2px solid rgba(150, 150, 255, 0.9);
+      box-shadow: 0 0 40px rgba(91, 91, 255, 0.55), inset 0 0 40px rgba(91, 91, 255, 0.25);
       animation: fbPulse 3.2s ease-in-out infinite;
     }
     .no-gl #halo { display: none; }
     .no-gl #haloFallback { display: block; }
-    @keyframes fbPulse { 0%,100% { transform: scale(1); opacity: .8 } 50% { transform: scale(1.04); opacity: 1 } }
+    @keyframes fbPulse { 0%, 100% { transform: scale(1); opacity: .8 } 50% { transform: scale(1.04); opacity: 1 } }
 
-    /* state label + status */
-    .info { text-align: center; min-height: 4.4rem; padding-top: 0.4rem; }
-    #stateLabel {
-      font-size: 0.9rem; font-weight: 400; color: var(--text);
-      letter-spacing: 0.46em; text-transform: uppercase; padding-left: 0.46em;
+    .voice-info {
+      display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+      padding: 0 1rem 1.5rem; text-align: center; min-height: 4.5rem;
     }
-    #statusText {
-      margin-top: 0.6rem; font-size: 0.9rem; color: var(--text-soft);
-      letter-spacing: 0.02em; min-height: 1.3rem;
-    }
-    body.is-error #stateLabel { color: #ffc2cf; }
+    #statusText { max-width: 32rem; }
 
-    /* ---------- form ---------- */
-    #loginSection { width: 100%; max-width: 340px; margin-top: 1.1rem; display: flex; flex-direction: column; align-items: stretch; gap: 0.9rem; }
-    #credFields { display: flex; flex-direction: column; gap: 0.7rem; }
-    .field { display: flex; flex-direction: column; gap: 0.3rem; }
-    .field label {
-      font-size: 0.6rem; font-weight: 500; color: var(--text-dim);
-      text-transform: uppercase; letter-spacing: 0.2em;
-    }
-    .field input {
-      background: rgba(120,130,255,0.06); color: var(--text);
-      padding: 0.65rem 0.9rem; font: inherit; font-size: 0.92rem;
-      border: 1px solid var(--line); border-radius: 10px; outline: none;
-      transition: border-color .2s, box-shadow .2s;
-    }
-    .field input:focus { border-color: rgba(150,150,255,0.7); box-shadow: 0 0 0 3px rgba(91,91,255,0.18); }
-    #loginErr { color: #ff9db1; font-size: 0.8rem; min-height: 1rem; text-align: center; }
+    /* ---------- Cards / forms (all Fiori components, only layout CSS here) ---------- */
+    ui5-card { width: 100%; }
+    .card-body { display: flex; flex-direction: column; gap: 1rem; padding: 1rem; }
+    .field { display: flex; flex-direction: column; gap: 0.25rem; }
+    .field ui5-input { width: 100%; }
+    .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .actions ui5-button { flex: 1 1 auto; }
 
-    /* ---------- buttons ---------- */
-    .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
-      padding: 0.85rem 2rem; font: inherit; font-size: 0.7rem; font-weight: 500;
-      letter-spacing: 0.22em; text-transform: uppercase; white-space: nowrap;
-      border-radius: 999px; border: 1px solid transparent; background: transparent;
-      cursor: pointer; -webkit-tap-highlight-color: transparent;
-      transition: transform .18s var(--ease), box-shadow .25s, background-color .25s, border-color .25s, color .25s;
-    }
-    .btn:active:not(:disabled) { transform: scale(0.97); }
-    .btn:disabled { opacity: 0.3; cursor: default; }
-    .btn:focus-visible { outline: 2px solid var(--ice); outline-offset: 3px; }
+    #previewText { white-space: pre-wrap; line-height: 1.5; padding: 1rem; display: block; }
 
-    .btn-primary {
-      color: #f4f5ff;
-      border-color: rgba(150,150,255,0.55);
-      background: linear-gradient(135deg, rgba(91,91,255,0.38), rgba(155,107,255,0.34));
-      box-shadow: 0 0 26px rgba(91,91,255,0.24), inset 0 0 14px rgba(160,175,255,0.12);
-    }
-    .btn-primary:not(:disabled):hover {
-      border-color: rgba(190,200,255,0.85);
-      background: linear-gradient(135deg, rgba(91,91,255,0.55), rgba(155,107,255,0.5));
-      box-shadow: 0 0 38px rgba(110,100,255,0.42), inset 0 0 16px rgba(180,195,255,0.18);
-    }
-    .btn-danger {
-      color: #ffc9d5; border-color: rgba(255,92,124,0.45); background: rgba(255,92,124,0.07);
-    }
-    .btn-danger:not(:disabled):hover {
-      border-color: rgba(255,120,148,0.8); background: rgba(255,92,124,0.15);
-      box-shadow: 0 0 26px rgba(255,92,124,0.25);
-    }
-    .btn-ghost { color: var(--text-soft); border-color: var(--line); }
-    .btn-ghost:not(:disabled):hover {
-      color: var(--text); border-color: rgba(170,180,255,0.4); background: rgba(120,130,255,0.08);
-    }
+    #transcriptScroll { max-height: 20rem; overflow-y: auto; }
+    .msg { display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.25rem 0; width: 100%; }
+    .msg ui5-icon { flex: none; margin-top: 0.125rem; color: var(--sapContent_IconColor); }
+    .msg.assistant ui5-icon { color: var(--sapAccentColor6, #5b5bff); }
+    .msg-col { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; }
+    .msg-role { color: var(--sapContent_LabelColor); font-size: var(--sapFontSmallSize, 0.75rem); }
+    .msg-text { white-space: normal; overflow-wrap: anywhere; }
 
-    #mainSection { display: none; margin-top: 1.1rem; }
-    #mainSection.visible { display: block; }
-    .ctrl-row { display: flex; gap: 0.7rem; flex-wrap: wrap; justify-content: center; }
-
-    /* ---------- preview ---------- */
-    #previewCard {
-      width: 100%; max-width: 560px; margin-top: 0.9rem; display: none;
-      border: 1px solid rgba(245,177,74,0.28); border-left: 2px solid var(--warning);
-      background: rgba(245,177,74,0.05); border-radius: 12px; padding: 0.95rem 1.2rem;
-      animation: rise .4s var(--ease);
-    }
-    .prev-title {
-      font-size: 0.6rem; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.22em; color: var(--warning); margin-bottom: 0.55rem;
-    }
-    #previewText { white-space: pre-wrap; font-size: 0.9rem; line-height: 1.65; color: var(--text); font-weight: 300; }
-    @keyframes rise { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
-
-    /* ---------- transcript drawer (opaque: no backdrop blur over the animated canvas) ---------- */
-    #tcWrap {
-      position: fixed; left: 50%; bottom: 0; z-index: 20;
-      width: min(720px, 100%); max-height: 55dvh;
-      display: flex; flex-direction: column;
-      background: rgba(6,8,24,0.97);
-      border: 1px solid var(--line); border-bottom: 0; border-radius: 18px 18px 0 0;
-      transform: translate(-50%, 105%); visibility: hidden;
-      transition: transform .38s var(--ease), visibility 0s .38s;
-    }
-    #tcWrap.open { transform: translate(-50%, 0); visibility: visible; transition: transform .38s var(--ease); }
-    .tc-hdr {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0.75rem 1rem 0.75rem 1.2rem; border-bottom: 1px solid var(--line);
-      font-size: 0.62rem; font-weight: 500; text-transform: uppercase;
-      letter-spacing: 0.24em; color: var(--text-soft);
-    }
-    .tc-close {
-      background: none; border: 0; color: var(--text-soft); font-size: 1.4rem; line-height: 1;
-      width: 2rem; height: 2rem; border-radius: 50%; cursor: pointer;
-    }
-    .tc-close:hover { color: var(--text); background: rgba(120,130,255,0.12); }
-    #transcript {
-      display: flex; flex-direction: column; gap: 0.8rem; overflow-y: auto;
-      padding: 1rem 1.2rem calc(1.2rem + env(safe-area-inset-bottom));
-      scrollbar-width: thin; scrollbar-color: var(--line) transparent;
-    }
-    #transcript:empty::before {
-      content: 'Hier erscheint das Gespräch …';
-      color: var(--text-dim); font-size: 0.8rem; letter-spacing: 0.05em; text-align: center; display: block;
-    }
-    .brow { display: flex; flex-direction: column; gap: 0.2rem; }
-    .brow.user      { align-items: flex-end; }
-    .brow.assistant { align-items: flex-start; }
-    .blbl {
-      font-size: 0.56rem; font-weight: 500; text-transform: uppercase;
-      letter-spacing: 0.2em; color: var(--text-dim); padding: 0 0.3rem;
-    }
-    .bbub {
-      max-width: 86%; padding: 0.6rem 0.95rem; border-radius: 14px;
-      font-size: 0.9rem; line-height: 1.55; word-break: break-word; font-weight: 300;
-    }
-    .brow.user .bbub {
-      background: rgba(58,160,255,0.12); border: 1px solid rgba(58,160,255,0.3);
-      border-bottom-right-radius: 4px;
-    }
-    .brow.assistant .bbub {
-      background: rgba(155,107,255,0.12); border: 1px solid rgba(155,107,255,0.3);
-      border-bottom-left-radius: 4px;
-    }
-
-    @media (max-width: 480px) { .bbub { max-width: 92%; } header { padding-top: 1.1rem; } }
-    @media (prefers-reduced-motion: reduce) {
-      #previewCard { animation: none; }
-      #tcWrap, #tcWrap.open { transition: none; }
-    }
+    @media (prefers-reduced-motion: reduce) { #haloFallback { animation: none; } }
   </style>
 </head>
 <body>
 
-  <header>
-    <h1>Besuchsdokumentation</h1>
-    <p>Sprachassistent</p>
-  </header>
+  <ui5-shellbar id="shell" primary-title="Besuchsdokumentation" secondary-title="Sprachassistent">
+    <ui5-shellbar-item id="themeBtn" icon="dark-mode" text="Dunkles Design"></ui5-shellbar-item>
+  </ui5-shellbar>
 
-  <main>
-    <!-- Halo: always visible, large and centered -->
-    <div id="stage">
-      <canvas id="halo" aria-label="KI-Statusanzeige" role="img"></canvas>
-      <div id="haloFallback" aria-hidden="true"></div>
+  <main class="page">
+    <div class="page-header">
+      <ui5-title level="H1" size="H2">Besuch dokumentieren</ui5-title>
+      <ui5-text>Dokumentiere deinen heutigen Kundenbesuch per Sprache. Gespeichert wird erst nach deiner Bestätigung.</ui5-text>
     </div>
 
-    <div class="info" aria-live="polite">
-      <div id="stateLabel">Bereit</div>
-      <p id="statusText">Bereit, wenn du es bist</p>
-    </div>
+    <div class="layout">
 
-    <div id="previewCard">
-      <div class="prev-title">Vorschau</div>
-      <div id="previewText"></div>
-    </div>
-
-    <!-- Login -->
-    <section id="loginSection">
-      <div id="credFields" hidden>
-        <div class="field">
-          <label for="u">Benutzername</label>
-          <input id="u" value="alice" autocomplete="username">
+      <!-- AI voice halo: always dark, large, centered -->
+      <section class="voice" aria-label="Sprachassistent">
+        <div id="stage">
+          <canvas id="halo" aria-label="KI-Statusanzeige" role="img"></canvas>
+          <div id="haloFallback" aria-hidden="true"></div>
         </div>
-        <div class="field">
-          <label for="p">Passwort</label>
-          <input id="p" type="password" value="alice" autocomplete="current-password">
+        <div class="voice-info" aria-live="polite">
+          <ui5-title id="stateLabel" level="H3">Bereit</ui5-title>
+          <ui5-text id="statusText">Bereit, wenn du es bist</ui5-text>
         </div>
-      </div>
-      <button class="btn btn-primary" id="startBtn" onclick="startSession()">Gespräch starten</button>
-      <div id="loginErr"></div>
-    </section>
+      </section>
 
-    <!-- Active session controls -->
-    <section id="mainSection">
-      <div class="ctrl-row">
-        <button class="btn btn-danger" id="stopBtn"  onclick="stopSession()">Gespräch beenden</button>
-        <button class="btn btn-ghost"  id="tcToggle" onclick="toggleTranscript()">Transkript anzeigen</button>
+      <div class="side">
+
+        <!-- Session (login, start / stop) -->
+        <ui5-card id="sessionCard">
+          <ui5-card-header slot="header" title-text="Sitzung" subtitle-text="Verbindung und Steuerung">
+            <ui5-icon slot="avatar" name="microphone"></ui5-icon>
+          </ui5-card-header>
+          <div class="card-body">
+            <ui5-message-strip id="msgStrip" design="Negative" hide-close-button hidden></ui5-message-strip>
+
+            <div id="loginSection" class="card-body" style="padding:0">
+              <div id="credFields" class="card-body" style="padding:0" hidden>
+                <div class="field">
+                  <ui5-label for="u" show-colon>Benutzername</ui5-label>
+                  <ui5-input id="u" value="alice" autocomplete="username"></ui5-input>
+                </div>
+                <div class="field">
+                  <ui5-label for="p" show-colon>Passwort</ui5-label>
+                  <ui5-input id="p" type="Password" value="alice" autocomplete="current-password"></ui5-input>
+                </div>
+              </div>
+              <div class="actions">
+                <ui5-button id="startBtn" design="Emphasized" icon="microphone">Gespräch starten</ui5-button>
+              </div>
+            </div>
+
+            <div id="mainSection" class="actions" hidden>
+              <ui5-button id="stopBtn" design="Negative" icon="stop">Gespräch beenden</ui5-button>
+            </div>
+          </div>
+        </ui5-card>
+
+        <!-- Commit preview -->
+        <ui5-card id="previewCard" hidden>
+          <ui5-card-header slot="header" title-text="Vorschau" subtitle-text="Bitte per Sprache bestätigen oder ablehnen">
+            <ui5-icon slot="avatar" name="document-text"></ui5-icon>
+          </ui5-card-header>
+          <ui5-text id="previewText"></ui5-text>
+        </ui5-card>
+
+        <!-- Transcript -->
+        <ui5-panel id="tcPanel" header-text="Transkript" collapsed>
+          <div id="transcriptScroll">
+            <ui5-list id="transcript" no-data-text="Hier erscheint das Gespräch …"></ui5-list>
+          </div>
+        </ui5-panel>
+
       </div>
-    </section>
+    </div>
   </main>
 
-  <aside id="tcWrap" aria-hidden="true">
-    <div class="tc-hdr"><span>Transkript</span><button class="tc-close" onclick="toggleTranscript()" aria-label="Schließen">×</button></div>
-    <div id="transcript"></div>
-  </aside>
+  <noscript>Diese Anwendung benötigt JavaScript.</noscript>
 
   <script>
     /* =====================================================================
@@ -329,7 +239,7 @@
         float wL = u_w.x, wT = u_w.y, wS = u_w.z, act = u_w.w;
 
         /* breathing + level swell */
-        float R  = 0.56 * (1.0 + 0.008 * sin(u_ph.w) + 0.018 * lvl * (wL + wS));
+        float R  = 0.62 * (1.0 + 0.008 * sin(u_ph.w) + 0.018 * lvl * (wL + wS));
         float e0 = rad - R;
         float a0 = abs(e0);
 
@@ -345,9 +255,9 @@
         float pres = clamp(wL * 0.85 + wT + wS, 0.0, 1.0);
         if (pres > 0.003 && a0 < 0.34) {
           vec3 acc = vec3(0.0);
-          float aL = 0.028 + 0.085 * lvl;
-          float aT = 0.075;
-          float aS = 0.022 + 0.105 * lvl;
+          float aL = 0.05 + 0.09 * lvl;
+          float aT = 0.085;
+          float aS = 0.05 + 0.10 * lvl;
           for (int k = 0; k < 9; k++) {
             float f  = float(k);
             float fk = f / 8.0;
@@ -553,13 +463,30 @@
     })()
 
     /* =====================================================================
+       THEME  –  SAP Horizon Light / Dark (UI5 theme API)
+    ===================================================================== */
+
+    const THEME_KEY = 'visit-theme'
+    function applyTheme (t) {
+      document.documentElement.setAttribute('data-theme', t)
+      if (window.UI5) window.UI5.setTheme(t === 'dark' ? 'sap_horizon_dark' : 'sap_horizon')
+      const btn = document.getElementById('themeBtn')
+      btn.setAttribute('icon', t === 'dark' ? 'light-mode' : 'dark-mode')
+      btn.setAttribute('text', t === 'dark' ? 'Helles Design' : 'Dunkles Design')
+    }
+    function toggleTheme () {
+      const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
+      try { localStorage.setItem(THEME_KEY, next) } catch {}
+      applyTheme(next)
+    }
+
+    /* =====================================================================
        APP  –  WebSocket, audio, session lifecycle
     ===================================================================== */
 
     const $ = (id) => document.getElementById(id)
     let ws = null, audioCtx = null, micStream = null, scriptProc = null, micAn = null, outAn = null
     let nextPlayAt = 0, stopping = false
-    let tcVisible = false
 
     /* app state -> halo mode, label, default sub-text */
     const STATES = {
@@ -590,29 +517,46 @@
       curState = state; curSub = sub
     }
 
-    function loginErr (msg) { $('loginErr').textContent = msg }
-
-    function toggleTranscript () {
-      tcVisible = !tcVisible
-      const wrap = $('tcWrap')
-      wrap.classList.toggle('open', tcVisible)
-      wrap.setAttribute('aria-hidden', String(!tcVisible))
-      $('tcToggle').textContent = tcVisible ? 'Transkript ausblenden' : 'Transkript anzeigen'
+    /* Fiori message strip in the session card (Negative / Critical / Positive / Information) */
+    function showMsg (design, text) {
+      const strip = $('msgStrip')
+      strip.design = design
+      strip.textContent = text
+      strip.hidden = false
     }
+    function hideMsg () { $('msgStrip').hidden = true }
+    function loginErr (msg) { msg ? showMsg('Negative', msg) : hideMsg() }
 
     function addTranscript (role, text) {
+      const who = role === 'user' ? 'Du' : 'Assistent'
+
+      const li = document.createElement('ui5-li-custom')
+      li.type = 'Inactive'
+      li.accessibleName = who + ': ' + String(text)
+
       const row = document.createElement('div')
-      row.className = 'brow ' + role
+      row.className = 'msg ' + role
+
+      const icon = document.createElement('ui5-icon')
+      icon.setAttribute('name', role === 'user' ? 'person-placeholder' : 'ai')
+      icon.setAttribute('accessible-name', who)
+
+      const col = document.createElement('div')
+      col.className = 'msg-col'
       const lbl = document.createElement('span')
-      lbl.className = 'blbl'
-      lbl.textContent = role === 'user' ? 'Du' : 'Assistent'
-      const bub = document.createElement('div')
-      bub.className = 'bbub'
-      bub.textContent = String(text)
-      row.appendChild(lbl); row.appendChild(bub)
-      const tc = $('transcript')
-      tc.appendChild(row)
-      tc.scrollTo({ top: tc.scrollHeight, behavior: 'smooth' })
+      lbl.className = 'msg-role'
+      lbl.textContent = who
+      const txt = document.createElement('ui5-text')
+      txt.className = 'msg-text'
+      txt.textContent = String(text)
+
+      col.append(lbl, txt)
+      row.append(icon, col)
+      li.append(row)
+
+      $('transcript').append(li)
+      const sc = $('transcriptScroll')
+      sc.scrollTo({ top: sc.scrollHeight, behavior: 'smooth' })
     }
 
     /* ---- Audio playback: PCM16 → AudioContext (level read from outAn) ---- */
@@ -687,12 +631,12 @@
 
     function showLogin () {
       $('loginSection').hidden = false
-      $('mainSection').classList.remove('visible')
+      $('mainSection').hidden = true
       $('startBtn').disabled = false
     }
 
     async function startSession () {
-      loginErr('')
+      hideMsg()
       $('startBtn').disabled = true
       const credFields = $('credFields')
 
@@ -714,7 +658,7 @@
         let res = await fetch('/api/voice-token', { headers })
         if (res.status === 401 && credFields.hidden) {
           credFields.hidden = false
-          loginErr('Bitte Zugangsdaten eingeben (Entwicklungsmodus).')
+          showMsg('Information', 'Bitte Zugangsdaten eingeben (Entwicklungsmodus).')
           $('startBtn').disabled = false
           return
         }
@@ -733,13 +677,13 @@
       }
 
       $('loginSection').hidden = true
-      $('mainSection').classList.add('visible')
-      $('transcript').innerHTML = ''
-      $('previewCard').style.display = 'none'
-      $('previewText').textContent   = ''
+      $('mainSection').hidden = false
+      $('transcript').replaceChildren()
+      $('previewCard').hidden = true
+      $('previewText').textContent = ''
       $('stopBtn').disabled = false
       stopping = false; readySub = null
-      if (tcVisible) toggleTranscript()
+      $('tcPanel').collapsed = true
 
       setStatusState('connecting')
 
@@ -778,20 +722,26 @@
           if (msg.role === 'user') { readySub = null; setStatusState('thinking', 'Verarbeite …') }
         } else if (msg.type === 'commit_preview') {
           $('previewText').textContent = msg.previewText ?? ''
-          $('previewCard').style.display = 'block'
+          $('previewCard').hidden = false
           setStatusState('ready', 'Vorschau — bitte bestätigen oder ablehnen')
         } else if (msg.type === 'done') {
           const ok = msg.status === 'COMPLETED'
-          setStatusState(ok ? 'ready' : 'error',
-            ok ? 'Besuch erfolgreich gespeichert' : 'Teilweise gespeichert (' + msg.code + ')')
+          const text = ok ? 'Besuch erfolgreich gespeichert' : 'Teilweise gespeichert (' + msg.code + ')'
+          setStatusState(ok ? 'ready' : 'error', text)
+          showMsg(ok ? 'Positive' : 'Critical', text)
         } else if (msg.type === 'error') {
-          setStatusState('error', String(msg.message ?? msg.code ?? 'Unbekannter Fehler'))
+          const text = String(msg.message ?? msg.code ?? 'Unbekannter Fehler')
+          setStatusState('error', text)
+          showMsg('Negative', text)
         } else if (msg.type === 'stopped') {
           if (ws) ws.close()
         }
       }
 
-      ws.onerror = () => setStatusState('error', 'WebSocket-Verbindungsfehler')
+      ws.onerror = () => {
+        setStatusState('error', 'WebSocket-Verbindungsfehler')
+        showMsg('Negative', 'WebSocket-Verbindungsfehler')
+      }
 
       ws.onclose = () => {
         stopAudio(); ws = null
@@ -814,8 +764,20 @@
     }
 
     /* ---- Boot ---- */
+    $('startBtn').addEventListener('click', startSession)
+    $('stopBtn').addEventListener('click', stopSession)
+    $('themeBtn').addEventListener('click', toggleTheme)
+    for (const id of ['u', 'p']) {
+      $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter' && !$('startBtn').disabled) startSession() })
+    }
+
     Halo.init()
     setStatusState('idle')
+    /* the UI5 bundle is a deferred module: it has run by DOMContentLoaded */
+    window.addEventListener('DOMContentLoaded', () => {
+      if (window.UI5) window.UI5.setLanguage('de')
+      applyTheme(document.documentElement.getAttribute('data-theme'))
+    })
   </script>
 </body>
 </html>

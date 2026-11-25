@@ -12,11 +12,18 @@
   },
   "devDependencies": {
     "@cap-js/cds-test": ">=0.3.0",
-    "@sap/cds-dk": "^10"
+    "@sap/cds-dk": "^10",
+    "@ui5/webcomponents": "2.29.0",
+    "@ui5/webcomponents-base": "2.29.0",
+    "@ui5/webcomponents-fiori": "2.29.0",
+    "@ui5/webcomponents-icons": "2.29.0",
+    "@ui5/webcomponents-localization": "2.29.0",
+    "esbuild": "^0.28.2"
   },
   "scripts": {
     "start": "cds-serve",
     "watch": "cds watch",
+    "build:ui": "esbuild ui-src/ui5.js --bundle --minify --format=esm --outfile=app/ui5.bundle.js",
     "test": "node --test --test-concurrency=1"
   },
   "private": true,
