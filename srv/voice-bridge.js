@@ -156,27 +156,43 @@ async function handleVoiceConnection (ws, userInfo) {
 
     const transcriptionModel = cds.env.voice?.aicore?.transcriptionModel ?? 'whisper-1'
 
-    // Trigger initial greeting after AI Core confirms the session config.
-    // Without response.create the model waits for the user to speak first,
-    // which contradicts SYSTEM_PROMPT step 1 ("Begrüße den Nutzer").
-    aiClient.once('session.updated', () => {
-      aiClient.send({ type: 'response.create' })
+    // Two-step session init mirrors the proven spike pattern:
+    //   Update 1 – text mode + instructions + tools  (spike step 2: confirmed instructions work)
+    //   Update 2 – audio mode + voice + VAD          (spike steps 3-5: confirmed audio works)
+    //   Instructions from update 1 persist because session.update merges, not replaces.
+    //   After both confirmations send response.create so the AI greets proactively (SYSTEM_PROMPT step 1).
+    let initStep = 0
+    aiClient.on('session.updated', (e) => {
+      initStep++
+      LOG.debug('session.updated', { step: initStep, hasInstructions: !!e?.session?.instructions })
+      if (initStep === 1) {
+        aiClient.send({
+          type: 'session.update',
+          session: {
+            type: 'realtime',
+            output_modalities: ['audio'],
+            audio: {
+              output: { voice: 'alloy' },
+              input: {
+                format: { type: 'audio/pcm', rate: 24000 },
+                transcription: { model: transcriptionModel },
+                turn_detection: { type: 'server_vad', create_response: true }
+              }
+            }
+          }
+        })
+      } else if (initStep === 2) {
+        aiClient.send({ type: 'response.create' })
+      }
     })
 
+    // Update 1: instructions + tools in text mode (proven by spike)
     aiClient.send({
       type: 'session.update',
       session: {
         type: 'realtime',
-        output_modalities: ['audio', 'text'],
+        output_modalities: ['text'],
         instructions: SYSTEM_PROMPT,
-        audio: {
-          output: { voice: 'alloy' },
-          input: {
-            format: { type: 'audio/pcm', rate: 24000 },
-            transcription: { model: transcriptionModel },
-            turn_detection: { type: 'server_vad', create_response: true }
-          }
-        },
         tools: AI_TOOLS,
         tool_choice: 'auto'
       }
