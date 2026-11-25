@@ -6,20 +6,18 @@
   <title>Besuchsdokumentation</title>
   <style>
     :root {
-      --bg:          #090910;
-      --surface:     rgba(255,255,255,0.03);
-      --border:      rgba(255,255,255,0.08);
-      --accent:      #00d4ff;
-      --accent-dim:  rgba(0,212,255,0.1);
-      --accent-glow: rgba(0,212,255,0.4);
-      --purple:      #9d6cff;
-      --purple-dim:  rgba(157,108,255,0.1);
-      --success:     #00e5a0;
-      --warning:     #f59e0b;
-      --error:       #ff4466;
-      --text:        #dde4ee;
-      --text-muted:  #5a6478;
-      --text-dim:    #2e3a4e;
+      --bg:         #090910;
+      --surface:    rgba(255,255,255,0.03);
+      --border:     rgba(255,255,255,0.08);
+      --accent:     #00d4ff;
+      --accent-dim: rgba(0,212,255,0.1);
+      --purple:     #9d6cff;
+      --purple-dim: rgba(157,108,255,0.1);
+      --warning:    #f59e0b;
+      --error:      #ff4466;
+      --text:       #dde4ee;
+      --text-muted: #5a6478;
+      --text-dim:   #2e3a4e;
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -28,7 +26,7 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
-      min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
       flex-direction: column;
       background-image:
@@ -45,18 +43,14 @@
       backdrop-filter: blur(16px);
       position: sticky; top: 0; z-index: 10; flex-shrink: 0;
     }
-
     .hdr-dot {
       width: 7px; height: 7px; border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 8px var(--accent-glow);
+      background: var(--accent); box-shadow: 0 0 8px rgba(0,212,255,0.6);
     }
-
     header h1 {
       font-size: 0.75rem; font-weight: 600;
       letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-muted);
     }
-
     .hdr-badge {
       margin-left: auto; font-size: 0.6rem; letter-spacing: 0.1em;
       text-transform: uppercase; color: var(--text-dim);
@@ -65,17 +59,16 @@
 
     /* layout */
     main {
-      max-width: 680px; width: 100%;
-      margin: 1.75rem auto; padding: 0 1rem;
-      flex: 1; display: flex; flex-direction: column; gap: 0.75rem;
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      padding: 1.5rem 1rem 2rem; gap: 1.1rem;
+      max-width: 680px; width: 100%; margin: 0 auto;
     }
 
     /* glass card */
     .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      backdrop-filter: blur(8px);
+      width: 100%; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 12px;
+      padding: 1.4rem 1.5rem; backdrop-filter: blur(8px);
     }
 
     /* form */
@@ -92,206 +85,115 @@
       transition: border-color 0.2s, box-shadow 0.2s;
     }
     .field input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 2px rgba(0,212,255,0.1), 0 0 14px rgba(0,212,255,0.07);
+      border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,212,255,0.1);
     }
 
     /* buttons */
     .btn {
-      display: inline-flex; align-items: center; gap: 0.4rem;
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
       padding: 0.6rem 1.5rem; font-size: 0.75rem; font-weight: 600;
       letter-spacing: 0.1em; text-transform: uppercase;
       border-radius: 6px; border: 1px solid transparent;
-      cursor: pointer; transition: all 0.15s; white-space: nowrap;
-      background: transparent;
+      cursor: pointer; transition: all 0.15s; white-space: nowrap; background: transparent;
     }
     .btn:disabled { opacity: 0.25; cursor: default; }
-
     .btn-primary {
       border-color: var(--accent); color: var(--accent); background: var(--accent-dim);
     }
     .btn-primary:not(:disabled):hover {
-      background: rgba(0,212,255,0.18);
-      box-shadow: 0 0 18px rgba(0,212,255,0.22), 0 0 36px rgba(0,212,255,0.07);
+      background: rgba(0,212,255,0.18); box-shadow: 0 0 18px rgba(0,212,255,0.22);
     }
-
     .btn-danger {
       border-color: var(--error); color: var(--error); background: rgba(255,68,102,0.07);
     }
     .btn-danger:not(:disabled):hover {
-      background: rgba(255,68,102,0.16);
-      box-shadow: 0 0 18px rgba(255,68,102,0.22);
+      background: rgba(255,68,102,0.16); box-shadow: 0 0 18px rgba(255,68,102,0.22);
+    }
+    .btn-ghost {
+      border-color: var(--border); color: var(--text-muted); font-size: 0.72rem;
+    }
+    .btn-ghost:not(:disabled):hover {
+      border-color: rgba(255,255,255,0.15); color: var(--text); background: rgba(255,255,255,0.03);
     }
 
-    /* login section */
-    #loginSection { padding: 1.4rem 1.5rem; }
     #loginErr { color: var(--error); font-size: 0.78rem; min-height: 1rem; margin-top: 0.5rem; }
 
-    /* voice indicator */
-    .vi-wrap {
-      display: flex; align-items: center; gap: 1rem;
-      padding: 0.9rem 1.2rem;
-    }
-
-    /* animated ring */
-    .vi-ring-outer {
-      position: relative; width: 40px; height: 40px; flex-shrink: 0;
-    }
-
-    .vi-ring {
-      width: 40px; height: 40px; border-radius: 50%;
-      border: 2px solid var(--text-dim);
-      display: flex; align-items: center; justify-content: center;
-      transition: border-color 0.4s, box-shadow 0.4s;
-    }
-
-    .vi-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--text-dim);
-      transition: background 0.4s, box-shadow 0.4s;
-    }
-
-    .vi-ripple {
-      position: absolute; inset: -5px; border-radius: 50%;
-      border: 1px solid var(--text-dim); opacity: 0;
-      transition: border-color 0.4s;
-    }
-
-    /* connecting: spinner */
-    .s-connecting .vi-ring {
-      border-color: var(--warning); border-top-color: transparent;
-      animation: spin 1s linear infinite;
-    }
-    .s-connecting .vi-dot { background: var(--warning); }
-
-    /* ready: gentle pulse */
-    .s-ready .vi-ring { border-color: var(--success); }
-    .s-ready .vi-dot  { background: var(--success); box-shadow: 0 0 8px var(--success); }
-    .s-ready .vi-ripple { border-color: var(--success); animation: ripple 2.4s ease-out infinite; }
-
-    /* listening: faster pulse, green */
-    .s-listening .vi-ring { border-color: var(--success); }
-    .s-listening .vi-dot  { background: var(--success); box-shadow: 0 0 10px var(--success); }
-    .s-listening .vi-ripple { border-color: var(--success); animation: ripple 1s ease-out infinite; }
-
-    /* speaking: cyan glow + ripple */
-    .s-speaking .vi-ring {
-      border-color: var(--accent);
-      box-shadow: 0 0 14px rgba(0,212,255,0.3), inset 0 0 10px rgba(0,212,255,0.08);
-    }
-    .s-speaking .vi-dot  { background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
-    .s-speaking .vi-ripple { border-color: var(--accent); animation: ripple 0.6s ease-out infinite; }
-
-    /* error */
-    .s-error .vi-ring { border-color: var(--error); }
-    .s-error .vi-dot  { background: var(--error); box-shadow: 0 0 8px var(--error); }
-
-    @keyframes spin    { to { transform: rotate(360deg); } }
-    @keyframes ripple  { 0%  { transform: scale(0.9); opacity: 0.6; } 100% { transform: scale(1.7); opacity: 0; } }
-
-    /* equalizer bars */
-    .vi-eq {
-      display: flex; align-items: flex-end; gap: 2px; height: 18px;
-      opacity: 0; transition: opacity 0.3s;
-    }
-    .vi-eq-bar {
-      width: 3px; border-radius: 2px;
-      background: var(--accent); height: 3px;
-    }
-    .s-speaking .vi-eq  { opacity: 1; }
-    .s-listening .vi-eq { opacity: 0.45; }
-    .s-listening .vi-eq-bar { background: var(--success); }
-
-    .s-speaking .vi-eq-bar,
-    .s-listening .vi-eq-bar { animation: eq-bar 0.6s ease-in-out infinite alternate; }
-    .vi-eq-bar:nth-child(1) { animation-delay: 0.00s; animation-duration: 0.42s; }
-    .vi-eq-bar:nth-child(2) { animation-delay: 0.09s; animation-duration: 0.56s; }
-    .vi-eq-bar:nth-child(3) { animation-delay: 0.04s; animation-duration: 0.37s; }
-    .vi-eq-bar:nth-child(4) { animation-delay: 0.13s; animation-duration: 0.61s; }
-    .vi-eq-bar:nth-child(5) { animation-delay: 0.07s; animation-duration: 0.48s; }
-    .s-listening .vi-eq-bar { animation-duration: 1.4s !important; }
-
-    @keyframes eq-bar { from { height: 3px; } to { height: 15px; } }
+    /* halo */
+    #haloWrap { display: flex; justify-content: center; align-items: center; width: 100%; }
+    #halo     { display: block; }
 
     /* status text */
-    .vi-text { display: flex; flex-direction: column; gap: 0.15rem; }
-    .vi-label {
-      font-size: 0.6rem; font-weight: 600; letter-spacing: 0.12em;
-      text-transform: uppercase; color: var(--text-muted);
+    #statusText {
+      font-size: 0.82rem; color: var(--text-muted);
+      text-align: center; letter-spacing: 0.03em; min-height: 1.2rem;
     }
-    #statusText { font-size: 0.85rem; color: var(--text); }
 
-    /* preview card */
-    #previewCard {
-      border: 1px solid rgba(245,158,11,0.25);
-      border-left: 2px solid var(--warning);
-      background: rgba(245,158,11,0.04);
-      border-radius: 10px;
-      padding: 1rem 1.25rem;
-      display: none;
+    /* control row */
+    .ctrl-row { display: flex; gap: 0.65rem; flex-wrap: wrap; justify-content: center; }
+
+    /* transcript panel */
+    #tcWrap {
+      width: 100%; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
     }
-    .prev-title {
+    .tc-hdr {
+      padding: 0.55rem 1rem;
       font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.12em; color: var(--warning); margin-bottom: 0.6rem;
+      letter-spacing: 0.12em; color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
     }
-    #previewText {
-      white-space: pre-wrap; font-size: 0.875rem; line-height: 1.65; color: var(--text);
-    }
-
-    /* transcript */
-    .tc-wrap { padding: 1rem 1.1rem; }
     #transcript {
       display: flex; flex-direction: column; gap: 0.75rem;
-      max-height: 400px; overflow-y: auto;
+      max-height: 320px; overflow-y: auto;
+      padding: 0.85rem 1rem;
       scrollbar-width: thin; scrollbar-color: var(--border) transparent;
     }
     #transcript:empty::before {
       content: 'Hier erscheint das Gespräch …';
       color: var(--text-dim); font-size: 0.78rem; letter-spacing: 0.05em;
-      text-align: center; padding: 1.75rem 0; display: block;
+      text-align: center; padding: 0.5rem 0; display: block;
     }
 
     /* chat bubbles */
     .brow { display: flex; flex-direction: column; gap: 0.2rem; }
     .brow.user      { align-items: flex-end; }
     .brow.assistant { align-items: flex-start; }
-
     .blbl {
-      font-size: 0.58rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.1em;
-      color: var(--text-dim); padding: 0 0.2rem;
+      font-size: 0.58rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--text-dim); padding: 0 0.2rem;
     }
-
     .bbub {
-      max-width: 80%; padding: 0.6rem 0.9rem;
-      border-radius: 10px; font-size: 0.875rem; line-height: 1.55;
-      word-break: break-word;
+      max-width: 85%; padding: 0.6rem 0.9rem;
+      border-radius: 10px; font-size: 0.875rem; line-height: 1.55; word-break: break-word;
     }
-
     .brow.user .bbub {
-      background: var(--accent-dim);
-      border: 1px solid rgba(0,212,255,0.22);
+      background: var(--accent-dim); border: 1px solid rgba(0,212,255,0.22);
       border-bottom-right-radius: 2px;
-      color: var(--text);
     }
-
     .brow.assistant .bbub {
-      background: var(--purple-dim);
-      border: 1px solid rgba(157,108,255,0.18);
+      background: var(--purple-dim); border: 1px solid rgba(157,108,255,0.18);
       border-bottom-left-radius: 2px;
-      color: var(--text);
     }
 
-    /* main section */
-    #mainSection { display: none; flex-direction: column; gap: 0.75rem; }
+    /* preview */
+    #previewCard {
+      width: 100%;
+      border: 1px solid rgba(245,158,11,0.25); border-left: 2px solid var(--warning);
+      background: rgba(245,158,11,0.04); border-radius: 10px;
+      padding: 1rem 1.25rem; display: none;
+    }
+    .prev-title {
+      font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.12em; color: var(--warning); margin-bottom: 0.6rem;
+    }
+    #previewText { white-space: pre-wrap; font-size: 0.875rem; line-height: 1.65; }
+
+    /* session section */
+    #mainSection { display: none; flex-direction: column; align-items: center; gap: 1.1rem; width: 100%; }
     #mainSection.visible { display: flex; }
 
-    @media (max-width: 480px) {
-      header { padding: 0 1rem; }
-      main { margin: 1rem auto; padding: 0 0.75rem; }
-      #loginSection { padding: 1rem; }
-      .bbub { max-width: 90%; }
-    }
+    @media (prefers-reduced-motion: reduce) { #halo { visibility: hidden; } }
+    @media (max-width: 480px) { header { padding: 0 1rem; } .bbub { max-width: 92%; } }
   </style>
 </head>
 <body>
@@ -303,10 +205,8 @@
   </header>
 
   <main>
-
     <!-- Login -->
-    <section id="loginSection" class="card">
-      <!-- Hidden in production (App Router + XSUAA). Shown automatically on 401. -->
+    <section id="loginSection" class="card" style="max-width:420px;">
       <div id="credFields" hidden>
         <div class="field">
           <label for="u">Benutzername</label>
@@ -324,121 +224,320 @@
     <!-- Active session -->
     <section id="mainSection">
 
-      <!-- Voice indicator -->
-      <div class="card">
-        <div class="vi-wrap s-connecting" id="voiceInd">
-          <div class="vi-ring-outer">
-            <div class="vi-ring"><div class="vi-dot"></div></div>
-            <div class="vi-ripple"></div>
-          </div>
-          <div class="vi-eq">
-            <div class="vi-eq-bar"></div>
-            <div class="vi-eq-bar"></div>
-            <div class="vi-eq-bar"></div>
-            <div class="vi-eq-bar"></div>
-            <div class="vi-eq-bar"></div>
-          </div>
-          <div class="vi-text">
-            <span class="vi-label">Status</span>
-            <span id="statusText">Verbinde …</span>
-          </div>
-        </div>
+      <div id="haloWrap">
+        <canvas id="halo" aria-label="KI-Statusanzeige" role="img"></canvas>
       </div>
 
-      <!-- Commit preview -->
+      <p id="statusText">Verbinde …</p>
+
+      <div class="ctrl-row">
+        <button class="btn btn-danger" id="stopBtn"  onclick="stopSession()">Gespräch beenden</button>
+        <button class="btn btn-ghost"  id="tcToggle" onclick="toggleTranscript()">Transkript anzeigen</button>
+      </div>
+
+      <div id="tcWrap" hidden>
+        <div class="tc-hdr">Transkript</div>
+        <div id="transcript"></div>
+      </div>
+
       <div id="previewCard">
         <div class="prev-title">Vorschau</div>
         <div id="previewText"></div>
       </div>
 
-      <!-- Transcript -->
-      <div class="card tc-wrap">
-        <div id="transcript"></div>
-      </div>
-
-      <!-- Stop -->
-      <div>
-        <button class="btn btn-danger" id="stopBtn" onclick="stopSession()">Gespräch beenden</button>
-      </div>
-
     </section>
-
   </main>
 
   <script>
+    /* =====================================================================
+       AI VOICE HALO  –  WebGL GLSL fragment shader
+       Shader states: 0 = idle  |  1 = listening  |  2 = thinking  |  3 = speaking
+       u_amp: real-time audio amplitude 0–1 (mic or AI output)
+    ===================================================================== */
+
+    const VERT_SRC = `
+      attribute vec2 a_pos;
+      void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }
+    `
+
+    const FRAG_SRC = `
+      precision highp float;
+      uniform vec2  u_res;
+      uniform float u_time;
+      uniform float u_amp;
+      uniform float u_state;   /* 0=idle 1=listen 2=think 3=speak */
+      uniform float u_active;  /* 0=no session  1=session open    */
+
+      #define TAU 6.28318530718
+
+      float hash(vec2 p) {
+        p = fract(p * vec2(234.34, 435.345));
+        p += dot(p, p + 34.23);
+        return fract(p.x * p.y);
+      }
+
+      float vnoise(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(
+          mix(hash(i),               hash(i + vec2(1.0, 0.0)), f.x),
+          mix(hash(i + vec2(0.0,1.0)), hash(i + vec2(1.0,1.0)), f.x),
+          f.y);
+      }
+
+      float fbm(vec2 p) {
+        float v = 0.0, a = 0.5;
+        for (int i = 0; i < 4; i++) {
+          v += a * vnoise(p);
+          p  = p * 2.1 + vec2(1.7, 9.2);
+          a *= 0.5;
+        }
+        return v;
+      }
+
+      void main() {
+        vec2 uv = (gl_FragCoord.xy - u_res * 0.5) / min(u_res.x, u_res.y);
+
+        float spd  = 0.22 + u_state * 0.28 + u_amp * 0.7;
+        float dstr = 0.022 + u_state * 0.012 + u_amp * 0.08;
+        float brit = 0.10 + u_active * 0.28 + u_state * 0.09 + u_amp * 0.48;
+
+        float t = u_time * spd;
+
+        /* Two-level domain warping for organic distortion */
+        vec2 q = vec2(fbm(uv * 2.1 + vec2(t*0.09, t*0.05)),
+                      fbm(uv * 2.1 + vec2(t*0.07, t*0.11) + vec2(3.2, 7.1)));
+        vec2 r2 = vec2(fbm(uv * 2.6 + q * 1.4 + vec2(1.7, 9.2) + t*0.04),
+                       fbm(uv * 2.6 + q * 1.4 + vec2(8.3, 2.8) + t*0.03));
+        vec2 wUV = uv + (r2 - 0.5) * dstr * 2.0;
+
+        /* Breathing pulse */
+        float pulse = 1.0 + sin(u_time * (0.75 + u_state*0.3)) * (0.012 + u_amp*0.035);
+        float rad   = length(wUV) / pulse;
+
+        /* Ring geometry */
+        float rr   = 0.36;
+        float edge = abs(rad - rr);
+        float ring = pow(smoothstep(0.048, 0.0, edge), 1.3);
+        float hl1  = exp(-edge * 11.0) * 0.55;
+        float hl2  = exp(-edge *  4.5) * 0.12;
+        float inn  = smoothstep(rr + 0.06, 0.0, rad) * 0.05 * u_active;
+
+        /* Colour: angle-based gradient that rotates over time */
+        float angle = atan(wUV.y, wUV.x);
+        float cph   = fract(angle/TAU + 0.5 + t*0.055 + q.x*0.22);
+
+        vec3 c0 = vec3(0.00, 0.83, 1.00);  /* cyan       */
+        vec3 c1 = vec3(0.08, 0.50, 0.95);  /* blue       */
+        vec3 c2 = vec3(0.55, 0.28, 1.00);  /* blue-violet*/
+        vec3 c3 = vec3(0.72, 0.12, 0.88);  /* magenta    */
+
+        float cp4 = cph * 4.0;
+        vec3 col;
+        if     (cp4 < 1.0) col = mix(c0, c1, smoothstep(0.0,1.0, cp4));
+        else if(cp4 < 2.0) col = mix(c1, c2, smoothstep(0.0,1.0, cp4-1.0));
+        else if(cp4 < 3.0) col = mix(c2, c3, smoothstep(0.0,1.0, cp4-2.0));
+        else               col = mix(c3, c0, smoothstep(0.0,1.0, cp4-3.0));
+
+        vec3 highlight = mix(col, vec3(0.78, 0.94, 1.00), hl1 * 0.38);
+        float alpha    = (ring + hl1 + hl2 + inn) * brit;
+        vec3  final    = mix(col, highlight, hl1/max(ring+hl1,0.001)) * alpha;
+
+        gl_FragColor = vec4(final, min(alpha * 1.5, 0.97));
+      }
+    `
+
+    /* ---- WebGL internals ---- */
+    let gl = null, hProg = null, hUni = {}, hRafId = null, hStart = 0
+    let hCurState = 0, hTgtState = 0
+    let hCurAmp   = 0, hTgtAmp   = 0
+    let hCurAct   = 0, hTgtAct   = 0
+    let hPrevTime = 0
+
+    function initHalo () {
+      const canvas = document.getElementById('halo')
+      const dpr  = Math.min(window.devicePixelRatio || 1, 2)
+      const size = calcHaloSize()
+      canvas.width  = size * dpr
+      canvas.height = size * dpr
+      canvas.style.width  = size + 'px'
+      canvas.style.height = size + 'px'
+
+      gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false, antialias: false })
+      if (!gl) return
+
+      function mkShader (type, src) {
+        const s = gl.createShader(type)
+        gl.shaderSource(s, src); gl.compileShader(s); return s
+      }
+      hProg = gl.createProgram()
+      gl.attachShader(hProg, mkShader(gl.VERTEX_SHADER,   VERT_SRC))
+      gl.attachShader(hProg, mkShader(gl.FRAGMENT_SHADER, FRAG_SRC))
+      gl.linkProgram(hProg); gl.useProgram(hProg)
+
+      const buf = gl.createBuffer()
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf)
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW)
+      const loc = gl.getAttribLocation(hProg, 'a_pos')
+      gl.enableVertexAttribArray(loc)
+      gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
+
+      hUni = {
+        res:    gl.getUniformLocation(hProg, 'u_res'),
+        time:   gl.getUniformLocation(hProg, 'u_time'),
+        amp:    gl.getUniformLocation(hProg, 'u_amp'),
+        state:  gl.getUniformLocation(hProg, 'u_state'),
+        active: gl.getUniformLocation(hProg, 'u_active'),
+      }
+      gl.uniform2f(hUni.res, canvas.width, canvas.height)
+      gl.viewport(0, 0, canvas.width, canvas.height)
+      gl.enable(gl.BLEND)
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE) /* additive blending → neon glow */
+      gl.clearColor(0, 0, 0, 0)
+
+      hStart = hPrevTime = performance.now()
+
+      function frame (now) {
+        hRafId = requestAnimationFrame(frame)
+        const dt = Math.min((now - hPrevTime) * 0.001, 0.1)
+        hPrevTime = now
+
+        const lrpS  = 1 - Math.exp(-dt * 2.5)
+        const lrpAu = 1 - Math.exp(-dt * 55)
+        const lrpAd = 1 - Math.exp(-dt *  4)
+        const lrpA  = hTgtAmp >= hCurAmp ? lrpAu : lrpAd
+
+        hCurState += (hTgtState - hCurState) * lrpS
+        hCurAmp   += (hTgtAmp   - hCurAmp)   * lrpA
+        hCurAct   += (hTgtAct   - hCurAct)   * lrpS
+
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.uniform1f(hUni.time,   (now - hStart) * 0.001)
+        gl.uniform1f(hUni.amp,    hCurAmp)
+        gl.uniform1f(hUni.state,  hCurState)
+        gl.uniform1f(hUni.active, hCurAct)
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+      }
+      frame(hStart)
+    }
+
+    function calcHaloSize () {
+      return Math.min(Math.max(Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.58), 220), 420)
+    }
+
+    function resizeHalo () {
+      if (!gl) return
+      const canvas = document.getElementById('halo')
+      const dpr  = Math.min(window.devicePixelRatio || 1, 2)
+      const size = calcHaloSize()
+      canvas.width  = size * dpr; canvas.height = size * dpr
+      canvas.style.width  = size + 'px'; canvas.style.height = size + 'px'
+      gl.uniform2f(hUni.res, canvas.width, canvas.height)
+      gl.viewport(0, 0, canvas.width, canvas.height)
+    }
+    window.addEventListener('resize', resizeHalo)
+
+    const HALO_STATE_MAP = { idle: 0, connecting: 0.4, ready: 1.0, listening: 2.0, speaking: 3.0, error: 0.2 }
+
+    function setHaloState (state) {
+      hTgtState = HALO_STATE_MAP[state] ?? 0
+      hTgtAct   = (state === 'idle') ? 0 : 1
+    }
+
+    /* =====================================================================
+       APP  –  WebSocket, audio, session lifecycle
+    ===================================================================== */
+
     let ws = null, audioCtx = null, micStream = null, scriptProc = null
     let nextPlayAt = 0, stopping = false, speakingTimer = null
-
-    // --- status state ---
+    let tcVisible = false
 
     function setStatusState (state, text) {
-      const ind = document.getElementById('voiceInd')
-      ind.className = 'vi-wrap s-' + state
+      setHaloState(state)
       const defaults = {
-        connecting: 'Verbinde …',
-        ready:      'Bereit — bitte sprechen',
-        listening:  'Verarbeite …',
-        speaking:   'Assistent spricht',
-        error:      'Fehler'
+        connecting: 'Verbinde …', ready: 'Bereit — bitte sprechen',
+        listening: 'Verarbeite …', speaking: 'Assistent spricht', error: 'Fehler'
       }
       document.getElementById('statusText').textContent = text ?? defaults[state] ?? state
     }
 
     function loginErr (msg) { document.getElementById('loginErr').textContent = msg }
 
-    // --- transcript ---
+    function toggleTranscript () {
+      tcVisible = !tcVisible
+      document.getElementById('tcWrap').hidden = !tcVisible
+      document.getElementById('tcToggle').textContent =
+        tcVisible ? 'Transkript ausblenden' : 'Transkript anzeigen'
+    }
 
     function addTranscript (role, text) {
       const row = document.createElement('div')
       row.className = 'brow ' + role
       const lbl = document.createElement('span')
       lbl.className = 'blbl'
-      lbl.textContent = role === 'user' ? 'Sie' : 'Assistent'
+      lbl.textContent = role === 'user' ? 'Du' : 'Assistent'
       const bub = document.createElement('div')
       bub.className = 'bbub'
       bub.textContent = String(text)
-      row.appendChild(lbl)
-      row.appendChild(bub)
+      row.appendChild(lbl); row.appendChild(bub)
       const tc = document.getElementById('transcript')
       tc.appendChild(row)
       row.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     }
 
-    // --- audio playback: PCM16 → AudioContext ---
+    /* ---- Audio playback: PCM16 → AudioContext ---- */
 
     function playPcm16 (buf) {
       if (!audioCtx) return
       const i16 = new Int16Array(buf)
-      const ab = audioCtx.createBuffer(1, i16.length, 24000)
+
+      let rms = 0
+      for (let i = 0; i < i16.length; i++) rms += (i16[i] / 32768) ** 2
+      hTgtAmp = Math.min(Math.sqrt(rms / i16.length) * 6, 1.0)
+
+      const ab  = audioCtx.createBuffer(1, i16.length, 24000)
       const f32 = ab.getChannelData(0)
       for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 32768
       const src = audioCtx.createBufferSource()
       src.buffer = ab; src.connect(audioCtx.destination)
       const now = audioCtx.currentTime
-      const t = Math.max(now + 0.04, nextPlayAt)
+      const t   = Math.max(now + 0.04, nextPlayAt)
       src.start(t); nextPlayAt = t + ab.duration
 
       setStatusState('speaking')
       clearTimeout(speakingTimer)
       speakingTimer = setTimeout(() => {
+        hTgtAmp = 0
         if (ws && ws.readyState === WebSocket.OPEN) setStatusState('ready')
       }, 700)
     }
 
-    // --- microphone: Float32 → PCM16 via ScriptProcessor ---
+    /* ---- Microphone: Float32 → PCM16 ---- */
 
     async function startMicrophone () {
       micStream = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, sampleRate: 24000, echoCancellation: true, noiseSuppression: true, autoGainControl: false },
+        audio: {
+          channelCount: 1, sampleRate: 24000,
+          echoCancellation: true, noiseSuppression: true, autoGainControl: false
+        },
         video: false
       })
-      audioCtx = new AudioContext({ sampleRate: 24000 })
+      audioCtx   = new AudioContext({ sampleRate: 24000 })
       nextPlayAt = 0
-      const src = audioCtx.createMediaStreamSource(micStream)
+
+      const src  = audioCtx.createMediaStreamSource(micStream)
       scriptProc = audioCtx.createScriptProcessor(4096, 1, 1)
+
       scriptProc.onaudioprocess = (e) => {
-        if (!ws || ws.readyState !== WebSocket.OPEN) return
         const f32 = e.inputBuffer.getChannelData(0)
+
+        if (hTgtState <= 1.5) { /* listening state: show mic level */
+          let rms = 0
+          for (let i = 0; i < f32.length; i++) rms += f32[i] * f32[i]
+          hTgtAmp = Math.min(Math.sqrt(rms / f32.length) * 14, 1.0)
+        }
+
+        if (!ws || ws.readyState !== WebSocket.OPEN) return
         const i16 = new Int16Array(f32.length)
         for (let i = 0; i < f32.length; i++)
           i16[i] = Math.max(-32768, Math.min(32767, Math.round(f32[i] * 32767)))
@@ -450,22 +549,19 @@
 
     function stopAudio () {
       clearTimeout(speakingTimer)
+      hTgtAmp = 0
       if (scriptProc) { try { scriptProc.disconnect() } catch {} scriptProc = null }
       if (micStream)  { micStream.getTracks().forEach(t => t.stop()); micStream = null }
       if (audioCtx)   { try { audioCtx.close() } catch {} audioCtx = null }
     }
 
-    // --- session lifecycle ---
+    /* ---- Session lifecycle ---- */
 
     async function startSession () {
       loginErr('')
       document.getElementById('startBtn').disabled = true
       const credFields = document.getElementById('credFields')
 
-      // Build auth headers.
-      // Production: App Router adds XSUAA JWT, no credentials needed here.
-      // Development: mocked auth uses Basic Auth; credentials shown after first 401.
-      // BAS tunnel: strips Authorization headers → retry with ?_dev_user= fallback.
       const headers = {}
       let devUserParam = ''
       if (!credFields.hidden) {
@@ -479,7 +575,6 @@
         devUserParam = user
       }
 
-      // 1. Fetch one-time WebSocket token from CAP
       let token
       try {
         let res = await fetch('/api/voice-token', { headers })
@@ -492,7 +587,7 @@
         if (res.status === 401 && devUserParam)
           res = await fetch('/api/voice-token?_dev_user=' + encodeURIComponent(devUserParam))
         if (!res.ok) {
-          loginErr('Anmeldung fehlgeschlagen (' + res.status + '). Zugangsdaten prüfen.')
+          loginErr('Anmeldung fehlgeschlagen (' + res.status + ').')
           document.getElementById('startBtn').disabled = false
           return
         }
@@ -503,18 +598,20 @@
         return
       }
 
-      // 2. Switch view
       document.getElementById('loginSection').hidden = true
       const mainSec = document.getElementById('mainSection')
       mainSec.classList.add('visible')
-      document.getElementById('transcript').innerHTML = ''
+      document.getElementById('transcript').innerHTML  = ''
       document.getElementById('previewCard').style.display = 'none'
-      document.getElementById('previewText').textContent = ''
+      document.getElementById('previewText').textContent   = ''
       document.getElementById('stopBtn').disabled = false
-      stopping = false
+      stopping   = false
+      tcVisible  = false
+      document.getElementById('tcWrap').hidden       = true
+      document.getElementById('tcToggle').textContent = 'Transkript anzeigen'
+
       setStatusState('connecting')
 
-      // 3. Microphone access (must be on user-gesture stack)
       try {
         await startMicrophone()
       } catch (err) {
@@ -526,7 +623,6 @@
         return
       }
 
-      // 4. Open WebSocket with one-time token
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
       ws = new WebSocket(proto + '//' + location.host + '/ws/voice?token=' + encodeURIComponent(token))
       ws.binaryType = 'arraybuffer'
@@ -534,7 +630,7 @@
       ws.onopen = () => {
         setStatusState('connecting', 'Sitzung wird gestartet …')
         ws.send(JSON.stringify({
-          type: 'start',
+          type:     'start',
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           language: 'de'
         }))
@@ -569,6 +665,7 @@
 
       ws.onclose = () => {
         stopAudio(); ws = null
+        setStatusState('idle')
         const delay = stopping ? 0 : 1800
         setTimeout(() => {
           document.getElementById('loginSection').hidden = false
@@ -586,11 +683,16 @@
         ws.send(JSON.stringify({ type: 'stop' }))
       } else {
         stopAudio(); ws = null
+        setStatusState('idle')
         document.getElementById('loginSection').hidden = false
         document.getElementById('mainSection').classList.remove('visible')
         document.getElementById('startBtn').disabled = false
       }
     }
+
+    /* ---- Boot ---- */
+    initHalo()
+    setHaloState('idle')
   </script>
 </body>
 </html>
