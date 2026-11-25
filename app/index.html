@@ -138,7 +138,9 @@
       // Build request headers.
       // In production the App Router adds the XSUAA JWT — no credentials needed.
       // In development (mocked auth) Basic Auth is required; credentials are shown after the first 401.
+      // BAS tunnel fallback: BAS strips Authorization headers, so we retry with ?_dev_user= when Basic Auth fails.
       const headers = {}
+      let devUserParam = ''
       if (!credFields.hidden) {
         const user = document.getElementById('u').value.trim()
         if (!user) {
@@ -147,18 +149,23 @@
           return
         }
         headers['Authorization'] = 'Basic ' + btoa(user + ':' + document.getElementById('p').value)
+        devUserParam = user
       }
 
       // 1. Fetch one-time WebSocket token from CAP
       let token
       try {
-        const res = await fetch('/api/voice-token', { headers })
+        let res = await fetch('/api/voice-token', { headers })
         if (res.status === 401 && credFields.hidden) {
           // Likely development with mocked auth — show credential form and let user retry
           credFields.hidden = false
           loginErr('Bitte Zugangsdaten eingeben (Entwicklungsmodus).')
           document.getElementById('startBtn').disabled = false
           return
+        }
+        // BAS tunnel strips Authorization headers — retry with query-parameter fallback (dev only)
+        if (res.status === 401 && devUserParam) {
+          res = await fetch('/api/voice-token?_dev_user=' + encodeURIComponent(devUserParam))
         }
         if (!res.ok) {
           loginErr('Anmeldung fehlgeschlagen (' + res.status + '). Zugangsdaten prüfen.')

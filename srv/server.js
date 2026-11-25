@@ -14,11 +14,25 @@ const LOG = cds.log('server')
 // Token endpoint – runs AFTER CAP's auth middleware.
 // In development (mocked auth) req.user is populated from Basic Auth headers.
 // In production (XSUAA) req.user is populated from the JWT forwarded by the App Router.
+//
+// Dev-only fallback: BAS tunnels strip Authorization headers, so mocked auth never fires.
+// When NODE_ENV !== 'production' and req.user is absent, ?_dev_user=alice is accepted as
+// a stand-in. This path is unreachable in production because auth.kind=xsuaa is active.
 cds.on('served', () => {
   cds.app.get('/api/voice-token', (req, res) => {
-    if (!req.user?.id) return res.status(401).json({ error: 'Unauthorized' })
-    if (!req.user.is('VisitDocumenter')) return res.status(403).json({ error: 'Forbidden' })
-    res.json({ token: createVoiceToken(req.user) })
+    let user = req.user
+    if (!user?.id && cds.env.profile !== 'production' && process.env.NODE_ENV !== 'production') {
+      const devUser = req.query._dev_user
+      if (devUser) {
+        const cfg = cds.env.requires?.auth?.users?.[devUser]
+        if (cfg) {
+          user = new cds.User({ id: devUser, roles: cfg.roles ?? [], attr: cfg.attr ?? {} })
+        }
+      }
+    }
+    if (!user?.id) return res.status(401).json({ error: 'Unauthorized' })
+    if (!user.is('VisitDocumenter')) return res.status(403).json({ error: 'Forbidden' })
+    res.json({ token: createVoiceToken(user) })
   })
 })
 
