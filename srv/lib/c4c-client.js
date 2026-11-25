@@ -36,7 +36,10 @@ async function request (method, path, data, headers) {
   } catch (err) {
     const status = err.status ?? err.statusCode ?? err.response?.status ?? err.reason?.response?.status
     LOG.error(`${method} ${path.split('?')[0]} failed`, { status, message: err.message })
-    throw new C4CError(`C4C ${method} failed`, { status, cause: err })
+    // Keep C4C's own business message (e.g. "mandatory tasks or surveys incomplete") so it reaches
+    // CommitOperations.lastError and the AI instead of a bare "C4C PATCH failed".
+    const detail = String(err.message ?? '').replace(/^Error during request to remote service:\s*/i, '').slice(0, 300)
+    throw new C4CError(`C4C ${method} failed${status ? ` (${status})` : ''}${detail ? `: ${detail}` : ''}`, { status, cause: err })
   }
 }
 
@@ -212,14 +215,30 @@ const toODataDate = (d) => d ? `/Date(${new Date(d).getTime()})/` : null
 
 /**
  * PATCHes a Visit. `actualEnd` is an ISO timestamp; `status` is a VISIT_STATUS code.
- * Pass the ETag from the last getVisit call.
+ * The ETag captured when the Visit was selected is stale after a few minutes of conversation
+ * (and changes after every PATCH), so the current ETag is read right before writing.
+ * On 412 the Visit is re-read once and the PATCH retried with the new ETag.
+ * The `etag` argument is only a fallback if the fresh read fails.
  */
 export async function patchVisit (objectID, etag, { actualEnd, status } = {}) {
   const body = {}
   if (actualEnd !== undefined) body.ActualEndDateTime = toODataDate(actualEnd)
   if (status !== undefined) body.Status = status
   if (!Object.keys(body).length) return
-  await request('PATCH', `/${ENTITY_SETS.visit}('${objectID}')`, body, etag ? { 'If-Match': etag } : undefined)
+  const path = `/${ENTITY_SETS.visit}('${objectID}')`
+  const send = (tag) => request('PATCH', path, body, tag ? { 'If-Match': tag } : undefined)
+
+  const freshEtag = async () => (await getVisit(objectID))?.etag ?? null
+  let tag = await freshEtag().catch(() => null) ?? etag
+  try {
+    await send(tag)
+  } catch (err) {
+    if (err.status !== 412) throw err
+    LOG.warn(`PATCH ${path} got 412, retrying once with a fresh ETag`)
+    tag = await freshEtag()
+    if (!tag) throw err
+    await send(tag)
+  }
 }
 
 /** Creates a Task in C4C and returns { objectID, id }. */
@@ -231,7 +250,15 @@ export async function createTask ({ subject, dueDateISO, accountUUID, ownerUUID,
     AccountUUID: accountUUID,
     OwnerUUID: ownerUUID,
     ProcessorUUID: processorUUID,
-    ...(dueDateISO ? { DueDateTime: toODataDate(new Date(dueDateISO + 'T00:00:00Z')), DueDatetimeZoneCode: TASK.TIME_ZONE_UTC } : {}),
+    // C4C rejects a Task with only a due date ("end date and time must be later than start date and
+    // time": it derives its own Start). So send an explicit 1h window on the due day (09:00–10:00 UTC),
+    // which keeps the calendar date correct in all time zones from UTC-9 to UTC+13.
+    ...(dueDateISO ? {
+      StartDateTime: toODataDate(new Date(dueDateISO + 'T09:00:00Z')),
+      StartDatetimeZoneCode: TASK.TIME_ZONE_UTC,
+      DueDateTime: toODataDate(new Date(dueDateISO + 'T10:00:00Z')),
+      DueDatetimeZoneCode: TASK.TIME_ZONE_UTC
+    } : {}),
     ...(processorPartyID ? { ProcessorPartyID: processorPartyID } : {})
   }
   const res = await request('POST', `/${ENTITY_SETS.task}`, body)
@@ -260,12 +287,20 @@ export async function createTaskVisitLink (taskObjectID, visitID) {
 
 /** Attaches a PDF to a Visit. `pdfBytes` is a Uint8Array or Buffer. */
 export async function createVisitAttachment ({ visitObjectID, typeCode, name, pdfBytes }) {
-  await request('POST', `/${ENTITY_SETS.visitAttachment}`, {
-    ParentObjectID: visitObjectID,
+  const body = {
     CategoryCode: VISIT_ATTACHMENT.CATEGORY_DOCUMENT,
     TypeCode: typeCode,
     Name: name,
     MimeType: 'application/pdf',
     Binary: Buffer.from(pdfBytes).toString('base64')
-  })
+  }
+  // POST to the flat VisitAttachmentCollection returned 404 on the test tenant (2026-11-25), so the
+  // navigation property "VisitAttachment" of the Visit (Visit.xml) is used first, the flat set as fallback.
+  try {
+    await request('POST', `/${ENTITY_SETS.visit}('${visitObjectID}')/VisitAttachment`, body)
+  } catch (err) {
+    if (err.status !== 404) throw err
+    LOG.warn('Visit/VisitAttachment navigation POST returned 404, trying flat VisitAttachmentCollection')
+    await request('POST', `/${ENTITY_SETS.visitAttachment}`, { ParentObjectID: visitObjectID, ...body })
+  }
 }

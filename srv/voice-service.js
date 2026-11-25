@@ -564,7 +564,10 @@ export default class VoiceAssistantService extends cds.ApplicationService {
       if (finalStatus === 'COMPLETED') {
         return ok('COMMIT_COMPLETED', 'All data has been saved to SAP Sales Cloud successfully.')
       }
-      return ok('COMMIT_PARTIAL_FAILURE', 'Some operations failed. Please check SAP Sales Cloud manually.', { errors })
+      return ok('COMMIT_PARTIAL_FAILURE',
+        'Some operations failed. Tell the user which ones failed and why (see errors[].lastError, it contains the SAP Sales Cloud message); ' +
+        'e.g. a Visit with incomplete mandatory tasks or surveys cannot be set to Completed until they are done in SAP Sales Cloud.',
+        { errors })
     })
 
     // --- task drafts (phase 4) -------------------------------------------------------------------

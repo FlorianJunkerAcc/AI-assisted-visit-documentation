@@ -171,7 +171,7 @@ async function mockTransport ({ method, path, data, headers }) {
       created.taskReferences.push({ ...data })
       return {}
     }
-    if (resource === 'VisitAttachmentCollection') {
+    if (resource === 'VisitAttachmentCollection' || /^VisitCollection\('[0-9A-Fa-f]+'\)\/VisitAttachment$/.test(resource)) {
       // Store only metadata – skip the base64 Binary to keep tests lean
       created.attachments.push({ TypeCode: data?.TypeCode, Name: data?.Name, MimeType: data?.MimeType })
       return {}
