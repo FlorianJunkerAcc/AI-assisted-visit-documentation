@@ -168,6 +168,7 @@
             </div>
 
             <div id="mainSection" class="actions" hidden>
+              <ui5-button id="pauseBtn" icon="media-pause" disabled>Pausieren</ui5-button>
               <ui5-button id="stopBtn" design="Negative" icon="stop">Gespräch beenden</ui5-button>
             </div>
           </div>
@@ -522,8 +523,10 @@
       ready:      { mode: 'listening',  label: 'Zuhören',    sub: 'Ich höre zu — bitte sprechen' },
       thinking:   { mode: 'thinking',   label: 'Denkt nach', sub: 'Einen Moment …' },
       speaking:   { mode: 'speaking',   label: 'Spricht',    sub: 'Assistent spricht' },
-      error:      { mode: 'error',      label: 'Fehler',     sub: 'Fehler' }
+      error:      { mode: 'error',      label: 'Fehler',     sub: 'Fehler' },
+      paused:     { mode: 'idle',       label: 'Pausiert',   sub: 'Mikrofon aus — deine Angaben bleiben erhalten' }
     }
+    let paused = false, resumeTo = null /* [state, text] to show after the pause */
     let curState = '', curSub = '', readySub = null
 
     function swap (el, text) {
@@ -534,6 +537,12 @@
     }
 
     function setStatusState (state, text) {
+      /* while paused, remember what the session is doing but keep showing "Pausiert" */
+      if (paused && state !== 'paused' && state !== 'error' && state !== 'idle') {
+        if (state === 'ready' && text != null) readySub = text
+        resumeTo = [state, text]
+        return
+      }
       const st  = STATES[state]
       const sub = text ?? st.sub
       Halo.setMode(st.mode)
@@ -634,7 +643,7 @@
       scriptProc = audioCtx.createScriptProcessor(4096, 1, 1)
 
       scriptProc.onaudioprocess = (e) => {
-        if (!ws || ws.readyState !== WebSocket.OPEN) return
+        if (paused || !ws || ws.readyState !== WebSocket.OPEN) return
         const f32 = e.inputBuffer.getChannelData(0)
         const i16 = new Int16Array(f32.length)
         for (let i = 0; i < f32.length; i++)
@@ -656,7 +665,48 @@
 
     /* ---- Session lifecycle ---- */
 
+    /* ---- Pause / resume ----
+       The WebSocket and the AI session stay open, so draft, tasks, transcript and conversation
+       context are untouched. Only the microphone is muted and playback frozen. */
+    function setPauseButton () {
+      const btn = $('pauseBtn')
+      btn.icon = paused ? 'media-play' : 'media-pause'
+      btn.textContent = paused ? 'Fortsetzen' : 'Pausieren'
+      btn.design = paused ? 'Emphasized' : 'Default'
+    }
+
+    function setMicEnabled (on) {
+      if (micStream) micStream.getAudioTracks().forEach(t => { t.enabled = on })
+    }
+
+    function pauseSession () {
+      if (paused || !audioCtx) return
+      resumeTo = [curState, curState === 'ready' ? undefined : curSub]
+      paused = true
+      setMicEnabled(false)
+      audioCtx.suspend().catch(() => {}) // freezes playback; it continues where it stopped
+      setStatusState('paused')
+      setPauseButton()
+    }
+
+    function resumeSession () {
+      if (!paused) return
+      paused = false
+      setMicEnabled(true)
+      if (audioCtx) audioCtx.resume().catch(() => {})
+      const [state, text] = resumeTo ?? ['ready']
+      setStatusState(state, text ?? (state === 'ready' ? readySub ?? undefined : undefined))
+      setPauseButton()
+    }
+
+    function resetPause () {
+      paused = false; resumeTo = null
+      setPauseButton()
+      $('pauseBtn').disabled = true
+    }
+
     function showLogin () {
+      resetPause()
       $('loginSection').hidden = false
       $('mainSection').hidden = true
       $('startBtn').disabled = false
@@ -709,6 +759,7 @@
       $('previewCard').hidden = true
       $('previewText').textContent = ''
       $('stopBtn').disabled = false
+      resetPause()
       stopping = false; readySub = null
       $('tcPanel').collapsed = true
 
@@ -743,6 +794,7 @@
         try { msg = JSON.parse(e.data) } catch { return }
 
         if (msg.type === 'ready') {
+          $('pauseBtn').disabled = false
           setStatusState('ready')
         } else if (msg.type === 'transcript') {
           addTranscript(msg.role, msg.text)
@@ -771,6 +823,8 @@
       }
 
       ws.onclose = () => {
+        if (paused) showMsg('Negative', 'Die Verbindung wurde während der Pause getrennt. Bitte starte ein neues Gespräch.')
+        resetPause()
         stopAudio(); ws = null
         setStatusState('idle')
         setTimeout(showLogin, stopping ? 0 : 1800)
@@ -778,6 +832,7 @@
     }
 
     function stopSession () {
+      resetPause()
       stopping = true
       $('stopBtn').disabled = true
       setStatusState('connecting', 'Sitzung wird beendet …')
@@ -793,6 +848,7 @@
     /* ---- Boot ---- */
     $('startBtn').addEventListener('click', startSession)
     $('stopBtn').addEventListener('click', stopSession)
+    $('pauseBtn').addEventListener('click', () => paused ? resumeSession() : pauseSession())
     $('themeBtn').addEventListener('click', toggleTheme)
     for (const id of ['u', 'p']) {
       $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter' && !$('startBtn').disabled) startSession() })

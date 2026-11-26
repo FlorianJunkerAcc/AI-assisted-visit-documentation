@@ -71,6 +71,20 @@ async function handleVoiceConnection (ws, userInfo) {
   let audioReady = false // true once the AI Core socket is open AND the audio session is configured
   let transcriptSeq = 0
 
+  // AI Core allows only one active response per conversation. A tool result often arrives while
+  // the response that requested the tool is still running, so response.create has to wait.
+  let responseActive = false
+  let responsePending = false
+  let openToolCalls = 0
+
+  const flushResponse = () => {
+    if (!aiClient || !responsePending || responseActive || openToolCalls > 0) return
+    responsePending = false
+    responseActive = true
+    aiClient.send({ type: 'response.create' })
+  }
+  const requestResponse = () => { responsePending = true; flushResponse() }
+
   const getUser = () => new cds.User({ id: userInfo.userId, roles: ['VisitDocumenter'], attr: { email: userInfo.userEmail } })
 
   /** Calls a VoiceAssistantService action, injecting sessionId automatically. */
@@ -105,6 +119,9 @@ async function handleVoiceConnection (ws, userInfo) {
     }
   }
 
+  // While the user pauses, no audio flows. Ping the browser so proxies don't drop the idle socket.
+  const keepAlive = setInterval(() => { if (ws.readyState === 1) ws.ping() }, 25_000)
+
   // --- browser message handler ---
   ws.on('message', async (data, isBinary) => {
     if (isBinary) {
@@ -122,6 +139,7 @@ async function handleVoiceConnection (ws, userInfo) {
   })
 
   ws.on('close', async () => {
+    clearInterval(keepAlive)
     LOG.info('connection closed', { userId: userInfo.userId, sessionId })
     if (aiClient) { try { aiClient.close() } catch {} aiClient = null }
     if (sessionId) { try { await callTool('cancelSession') } catch {} sessionId = null }
@@ -156,7 +174,19 @@ async function handleVoiceConnection (ws, userInfo) {
     }
 
     audioReady = false
+    responseActive = false
+    responsePending = false
+    openToolCalls = 0
     attachAiHandlers(aiClient)
+
+    // Tell the user if AI Core ends the connection (e.g. session time limit during a long pause).
+    // On a deliberate close aiClient is already null when this event fires.
+    const client = aiClient
+    client.socket?.on('close', () => {
+      if (aiClient !== client) return
+      audioReady = false
+      send({ type: 'error', code: 'AICORE_CLOSED', message: 'Die Verbindung zum Sprachdienst wurde beendet. Bitte starte ein neues Gespräch.' })
+    })
 
     // Wait for session.created: AI Core confirms the initial session setup.
     // createClient resolves while the WebSocket may still be CONNECTING, so nothing must be
@@ -207,7 +237,7 @@ async function handleVoiceConnection (ws, userInfo) {
         })
       } else if (initStep === 2) {
         audioReady = true
-        aiClient.send({ type: 'response.create' })
+        requestResponse() // greeting
       }
     })
 
@@ -259,14 +289,20 @@ async function handleVoiceConnection (ws, userInfo) {
       try { args = JSON.parse(argsStr ?? '{}') } catch { args = {} }
       LOG.debug('tool call', { name, args })
 
-      const result = await callTool(name, args)
+      openToolCalls++
+      let result
+      try {
+        result = await callTool(name, args)
 
-      // Send the tool output back to AI Core so it can continue
-      client.send({
-        type: 'conversation.item.create',
-        item: { type: 'function_call_output', call_id, output: JSON.stringify(result) }
-      })
-      client.send({ type: 'response.create' })
+        // Send the tool output back to AI Core so it can continue
+        client.send({
+          type: 'conversation.item.create',
+          item: { type: 'function_call_output', call_id, output: JSON.stringify(result) }
+        })
+      } finally {
+        openToolCalls--
+      }
+      requestResponse() // sent now, or after the running response is done
 
       // Forward notable results to the browser UI
       if (name === 'prepareCommitPreview' && result.ok) {
@@ -277,7 +313,20 @@ async function handleVoiceConnection (ws, userInfo) {
       }
     })
 
+    // Also covers responses started by server VAD, not only our own response.create
+    client.on('response.created', () => { responseActive = true })
+    client.on('response.done', () => { responseActive = false; flushResponse() })
+
     client.on('error', (e) => {
+      // Remaining race (server VAD started a response at the same moment): harmless, retry later
+      const code = e?.error?.code
+      if (code === 'conversation_already_has_active_response' ||
+          /active response in progress/i.test(e?.error?.message ?? e?.message ?? '')) {
+        LOG.warn('response.create while a response was active – retrying after response.done')
+        responseActive = true
+        responsePending = true
+        return
+      }
       LOG.error('AI Core error', e)
       // readable text for the UI instead of '{"name":"OpenAIRealtimeError","cause":{}}'
       const text = e?.error?.message ?? e?.message ?? 'Unbekannter Fehler'
