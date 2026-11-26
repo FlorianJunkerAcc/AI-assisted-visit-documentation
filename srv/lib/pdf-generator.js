@@ -18,46 +18,72 @@ async function newDoc () {
   return { doc, regular, bold }
 }
 
-function wrapText (text, font, size) {
+// Helvetica can only encode WinAnsi. drawText throws on anything else (emoji, other scripts,
+// control characters), which would make the whole attachment fail – so replace those.
+function sanitize (text, font) {
+  const supported = new Set(font.getCharacterSet())
+  return Array.from(String(text ?? '').replace(/\r\n?/g, '\n').replace(/\t/g, ' '),
+    c => c === '\n' || supported.has(c.codePointAt(0)) ? c : '?').join('')
+}
+
+function wrapText (text, font, size, maxWidth) {
+  const fits = (s) => font.widthOfTextAtSize(s, size) <= maxWidth
   const lines = []
-  for (const para of String(text ?? '').split('\n')) {
+  for (const para of sanitize(text, font).split('\n')) {
     if (!para) { lines.push(''); continue }
-    const words = para.split(' ')
     let cur = ''
-    for (const w of words) {
+    for (let w of para.split(' ')) {
       const test = cur ? `${cur} ${w}` : w
-      if (font.widthOfTextAtSize(test, size) > BODY_W && cur) { lines.push(cur); cur = w } else cur = test
+      if (fits(test)) { cur = test; continue }
+      if (cur) lines.push(cur)
+      // a single word wider than the line (e.g. a long URL) is split by characters
+      while (!fits(w) && w.length > 1) {
+        let n = w.length - 1
+        while (n > 1 && !fits(w.slice(0, n))) n--
+        lines.push(w.slice(0, n))
+        w = w.slice(n)
+      }
+      cur = w
     }
     if (cur) lines.push(cur)
   }
   return lines
 }
 
+/** Writes lines top to bottom and starts a new A4 page whenever the current one is full. */
 class Painter {
-  constructor (page, regular, bold) {
-    this.page = page; this.regular = regular; this.bold = bold
+  constructor (doc, regular, bold) {
+    this.doc = doc; this.regular = regular; this.bold = bold
+    this._newPage()
+  }
+
+  _newPage () {
+    this.page = this.doc.addPage([PAGE_W, PAGE_H])
     this.y = PAGE_H - MARGIN
   }
 
+  /** Starts a new page if fewer than `lines` lines are left. */
+  ensure (lines = 1) {
+    if (this.y - lines * LH < MARGIN) this._newPage()
+  }
+
   _draw (text, font, size, indent = 0) {
-    if (this.y < MARGIN + LH) return
-    this.y -= LH
-    this.page.drawText(String(text ?? ''), { x: MARGIN + indent, y: this.y, font, size, color: rgb(0, 0, 0) })
+    for (const l of wrapText(text, font, size, BODY_W - indent)) {
+      this.ensure()
+      this.y -= LH
+      this.page.drawText(l, { x: MARGIN + indent, y: this.y, font, size, color: rgb(0, 0, 0) })
+    }
   }
 
   title (text) { this._draw(text, this.bold, FS_TITLE) }
   line (text, indent = 0) { this._draw(text, this.regular, FS, indent) }
-  blank () { if (this.y > MARGIN + LH) this.y -= LH }
-
-  wrapped (text, indent = 0) {
-    for (const l of wrapText(text, this.regular, FS)) this._draw(l, this.regular, FS, indent)
-  }
+  wrapped (text, indent = 0) { this._draw(text, this.regular, FS, indent) }
+  blank () { this.y -= LH } // the next _draw breaks the page if necessary
 }
 
 export async function generateSummaryPdf (draft, tasks, timeZone) {
   const { doc, regular, bold } = await newDoc()
-  const page = doc.addPage([PAGE_W, PAGE_H])
-  const p = new Painter(page, regular, bold)
+  const p = new Painter(doc, regular, bold)
 
   const dateStr = draft.c4cPlannedStart ? formatLocalDate(timeZone, new Date(draft.c4cPlannedStart)) : ''
   const startStr = draft.c4cPlannedStart ? formatLocalTime(timeZone, new Date(draft.c4cPlannedStart)) : ''
@@ -90,8 +116,7 @@ export async function generateSummaryPdf (draft, tasks, timeZone) {
 
 export async function generateTranscriptPdf (draft, entries, timeZone) {
   const { doc, regular, bold } = await newDoc()
-  const page = doc.addPage([PAGE_W, PAGE_H])
-  const p = new Painter(page, regular, bold)
+  const p = new Painter(doc, regular, bold)
 
   const dateStr = draft.c4cPlannedStart ? formatLocalDate(timeZone, new Date(draft.c4cPlannedStart)) : ''
 
@@ -103,6 +128,7 @@ export async function generateTranscriptPdf (draft, entries, timeZone) {
 
   for (const entry of (entries ?? [])) {
     const role = entry.role === 'user' ? 'Nutzer' : 'Assistent'
+    p.ensure(2) // keep the speaker label together with the first line of the text
     p.line(`[${role}]`)
     p.wrapped(entry.text ?? '', 10)
     p.blank()

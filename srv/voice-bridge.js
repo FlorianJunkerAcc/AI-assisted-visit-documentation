@@ -68,6 +68,7 @@ async function handleVoiceConnection (ws, userInfo) {
 
   let sessionId = null
   let aiClient = null
+  let audioReady = false // true once the AI Core socket is open AND the audio session is configured
   let transcriptSeq = 0
 
   const getUser = () => new cds.User({ id: userInfo.userId, roles: ['VisitDocumenter'], attr: { email: userInfo.userEmail } })
@@ -107,8 +108,10 @@ async function handleVoiceConnection (ws, userInfo) {
   // --- browser message handler ---
   ws.on('message', async (data, isBinary) => {
     if (isBinary) {
-      // Raw PCM16 from the microphone → forward to AI Core
-      if (aiClient) aiClient.send({ type: 'input_audio_buffer.append', audio: data.toString('base64') })
+      // Raw PCM16 from the microphone → forward to AI Core.
+      // The browser streams right away; audio arriving before the session is ready is dropped
+      // (sending on a still CONNECTING socket raises OpenAIRealtimeError "could not send data").
+      if (aiClient && audioReady) aiClient.send({ type: 'input_audio_buffer.append', audio: data.toString('base64') })
       return
     }
     let msg
@@ -152,13 +155,12 @@ async function handleVoiceConnection (ws, userInfo) {
       return
     }
 
+    audioReady = false
     attachAiHandlers(aiClient)
 
     // Wait for session.created: AI Core confirms the initial session setup.
-    // createClient resolves when the WebSocket opens – before session.created fires –
-    // so the listener below is guaranteed to catch the event (same pattern as the spike).
-    // Without this wait, session.update is sent while the socket is still CONNECTING
-    // and is silently discarded, leaving the model with default (generic) instructions.
+    // createClient resolves while the WebSocket may still be CONNECTING, so nothing must be
+    // sent before this event (same pattern as the spike).
     try {
       await new Promise((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error('session.created timeout')), 20_000)
@@ -204,6 +206,7 @@ async function handleVoiceConnection (ws, userInfo) {
           }
         })
       } else if (initStep === 2) {
+        audioReady = true
         aiClient.send({ type: 'response.create' })
       }
     })
@@ -276,7 +279,9 @@ async function handleVoiceConnection (ws, userInfo) {
 
     client.on('error', (e) => {
       LOG.error('AI Core error', e)
-      send({ type: 'error', code: 'AICORE_ERROR', message: JSON.stringify(e?.error ?? e).slice(0, 500) })
+      // readable text for the UI instead of '{"name":"OpenAIRealtimeError","cause":{}}'
+      const text = e?.error?.message ?? e?.message ?? 'Unbekannter Fehler'
+      send({ type: 'error', code: 'AICORE_ERROR', message: `Fehler im Sprachdienst: ${text}`.slice(0, 500) })
     })
   }
 }
