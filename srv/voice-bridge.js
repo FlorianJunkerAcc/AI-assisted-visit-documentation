@@ -238,7 +238,9 @@ async function handleVoiceConnection (ws, userInfo) {
               input: {
                 format: { type: 'audio/pcm', rate: 24000 },
                 transcription: { model: transcriptionModel },
-                turn_detection: { type: 'server_vad', create_response: true }
+                // interrupt_response false: the assistant always finishes its answer (no barge-in).
+                // The browser additionally sends silence while the assistant is audible.
+                turn_detection: { type: 'server_vad', create_response: true, interrupt_response: false }
               }
             }
           }
@@ -400,7 +402,14 @@ async function handleVoiceConnection (ws, userInfo) {
 
     // Also covers responses started by server VAD, not only our own response.create
     client.on('response.created', () => { if (client === aiClient) responseActive = true })
-    client.on('response.done', () => { if (client === aiClient) { responseActive = false; flushResponse() } })
+    client.on('response.done', (e) => {
+      if (client !== aiClient) return
+      if (e?.response?.status && e.response.status !== 'completed') {
+        LOG.warn('response not completed', { status: e.response.status, reason: e.response.status_details?.reason })
+      }
+      responseActive = false
+      flushResponse()
+    })
 
     client.on('error', (e) => {
       // Remaining race (server VAD started a response at the same moment): harmless, retry later
