@@ -238,9 +238,18 @@ async function handleVoiceConnection (ws, userInfo) {
               input: {
                 format: { type: 'audio/pcm', rate: 24000 },
                 transcription: { model: transcriptionModel },
-                // interrupt_response false: the assistant always finishes its answer (no barge-in).
-                // The browser additionally sends silence while the assistant is audible.
-                turn_detection: { type: 'server_vad', create_response: true, interrupt_response: false }
+                // Turn taking:
+                // - silence_duration_ms: only a longer pause ends the user's turn, so the assistant
+                //   does not jump into thinking pauses (default would be ~500 ms).
+                // - interrupt_response true: if the user continues BEFORE the answer is audible,
+                //   that answer is dropped. Once it is audible the browser sends only silence,
+                //   so the assistant itself cannot be interrupted.
+                turn_detection: {
+                  type: 'server_vad',
+                  silence_duration_ms: cds.env.voice?.aicore?.silenceDurationMs ?? 1400,
+                  create_response: true,
+                  interrupt_response: true
+                }
               }
             }
           }
