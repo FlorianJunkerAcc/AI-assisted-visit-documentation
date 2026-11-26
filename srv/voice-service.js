@@ -4,7 +4,7 @@ import { ok, fail } from './lib/tool-result.js'
 import { isValidTimeZone, normaliseLanguage } from './lib/validation.js'
 import * as c4c from './lib/c4c-client.js'
 import { VISIT_ATTACHMENT, VISIT_STATUS } from './lib/c4c-codes.js'
-import { localDayRangeUtc, formatLocalTime, formatGermanDate, germanIsoDate, zonedTimeToUtc, localDate } from './lib/time.js'
+import { localDayRangeUtc, formatLocalTime, formatGermanDate, germanIsoDate, spokenTime, zonedTimeToUtc, localDate } from './lib/time.js'
 import { generateSummaryPdf, generateTranscriptPdf } from './lib/pdf-generator.js'
 
 const LOG = cds.log('voice')
@@ -18,6 +18,8 @@ const YES_WORDS = ['ja', 'jawohl', 'stimmt', 'korrekt', 'bitte', 'speichern', 'g
   'yes', 'correct', 'right', 'please', 'save', 'confirm', 'go ahead', 'sure', 'ok', 'okay']
 const NO_WORDS = ['nein', 'nicht', 'stop', 'abbruch', 'abbrechen', 'korrigieren', 'ändern', 'falsch',
   'no', 'cancel', 'wrong', 'undo', 'change', 'halt']
+
+const isDueTime = (v) => /^([01]?\d|2[0-3]):[0-5]\d$/.test(String(v))
 
 function matchesWord (utterance, words) {
   const clean = utterance.replace(/[.,!?;:'"()-]/g, ' ').replace(/\s+/g, ' ').trim()
@@ -126,7 +128,9 @@ export default class VoiceAssistantService extends cds.ApplicationService {
       subject: v.subject,
       date: formatGermanDate(tz, v.start),
       startTime: formatLocalTime(tz, v.start),
-      endTime: formatLocalTime(tz, v.end)
+      endTime: formatLocalTime(tz, v.end),
+      startTimeSpoken: spokenTime(formatLocalTime(tz, v.start)),
+      endTimeSpoken: spokenTime(formatLocalTime(tz, v.end))
     })
 
     this.on('findVisit', async (req) => {
@@ -362,6 +366,7 @@ export default class VoiceAssistantService extends cds.ApplicationService {
           subject: t.proposedSubject ?? '',
           description: t.proposedDescription ?? '',
           dueDate: t.proposedDueDate ?? '',
+          dueTime: t.proposedDueTime ?? '',
           processorUUID: t.c4cProcessorUUID ?? ''
         }))
       })
@@ -373,8 +378,8 @@ export default class VoiceAssistantService extends cds.ApplicationService {
       const visitDateStr = formatGermanDate(session.timeZone, new Date(draft.c4cPlannedStart))
 
       const taskLines = tasks.map((t, i) => isDE
-        ? `  Aufgabe ${i + 1}: ${t.proposedSubject}${t.c4cProcessorName ? ` (Zuständig: ${t.c4cProcessorName})` : ''}${t.proposedDueDate ? `, fällig am ${germanIsoDate(t.proposedDueDate)}` : ''}`
-        : `  Task ${i + 1}: ${t.proposedSubject}${t.c4cProcessorName ? ` (Assigned to: ${t.c4cProcessorName})` : ''}${t.proposedDueDate ? `, due ${germanIsoDate(t.proposedDueDate)}` : ''}`)
+        ? `  Aufgabe ${i + 1}: ${t.proposedSubject}${t.c4cProcessorName ? ` (Zuständig: ${t.c4cProcessorName})` : ''}${t.proposedDueDate ? `, fällig am ${germanIsoDate(t.proposedDueDate)}${t.proposedDueTime ? ` um ${t.proposedDueTime} Uhr` : ''}` : ''}`
+        : `  Task ${i + 1}: ${t.proposedSubject}${t.c4cProcessorName ? ` (Assigned to: ${t.c4cProcessorName})` : ''}${t.proposedDueDate ? `, due ${germanIsoDate(t.proposedDueDate)}${t.proposedDueTime ? ` at ${t.proposedDueTime}` : ''}` : ''}`)
 
       let previewText
       if (isDE) {
@@ -403,7 +408,8 @@ export default class VoiceAssistantService extends cds.ApplicationService {
 
       return ok('COMMIT_PREVIEW', 'The preview is shown on the user\'s screen, do not read it out. Name only the key facts (customer, end time, tasks) in one or two short sentences. Then ask whether you should read the summary again (a yes to that is NOT a save confirmation). After that, ask separately for explicit yes/no confirmation to save. Pass the hash to confirmCommit together with the user\'s utterance.', {
         previewHash,
-        previewText
+        previewText,
+        endTimeSpoken: spokenTime(endTimeStr)
       })
     })
 
@@ -501,6 +507,8 @@ export default class VoiceAssistantService extends cds.ApplicationService {
           const result = await c4c.createTask({
             subject: task.proposedSubject,
             dueDateISO: task.proposedDueDate ?? null,
+            dueTime: task.proposedDueTime ?? null,
+            timeZone: session.timeZone,
             accountUUID: draft.c4cAccountUUID,
             ownerUUID: session.c4cEmployeeUUID,
             processorUUID: task.c4cProcessorUUID,
@@ -587,7 +595,7 @@ export default class VoiceAssistantService extends cds.ApplicationService {
     // --- task drafts (phase 4) -------------------------------------------------------------------
 
     this.on('addTaskDraft', async (req) => {
-      const { subject, description, dueDate, processorName } = req.data
+      const { subject, description, dueDate, dueTime, processorName } = req.data
       const { session, draft } = await loadSessionWithVisit(req)
       if (!session) return
       if (!draft) return fail('NO_VISIT_SELECTED', 'Call findVisit and selectVisit first.')
@@ -597,6 +605,8 @@ export default class VoiceAssistantService extends cds.ApplicationService {
       const subjectStr = String(subject ?? '').trim()
       if (!subjectStr) return fail('SUBJECT_REQUIRED', 'A task subject is required.')
       if (subjectStr.length > 765) return fail('SUBJECT_TOO_LONG', 'Task subject must be at most 765 characters.')
+      if (dueTime && !isDueTime(dueTime)) return fail('INVALID_TIME_FORMAT', 'dueTime must be in HH:mm format, e.g. "14:30".')
+      if (dueTime && !dueDate) return fail('DUE_DATE_REQUIRED', 'A due time needs a due date. Ask the user for the date.')
 
       const processor = await resolveProcessor(processorName, session)
       const existing = await SELECT.from(TaskDrafts).where({ visitDraft_ID: draft.ID })
@@ -610,6 +620,7 @@ export default class VoiceAssistantService extends cds.ApplicationService {
         proposedSubject: subjectStr,
         proposedDescription: description ?? null,
         proposedDueDate: dueDate ?? null,
+        proposedDueTime: dueTime || null,
         proposedProcessorName: processor.proposedProcessorName,
         processorStatus: processor.processorStatus,
         processorMessage: processor.processorMessage,
@@ -633,7 +644,7 @@ export default class VoiceAssistantService extends cds.ApplicationService {
     })
 
     this.on('updateTaskDraft', async (req) => {
-      const { taskId, subject, description, dueDate, processorName } = req.data
+      const { taskId, subject, description, dueDate, dueTime, processorName } = req.data
       const { session, draft } = await loadSessionWithVisit(req)
       if (!session) return
       if (!draft) return fail('NO_VISIT_SELECTED', 'Call findVisit and selectVisit first.')
@@ -653,6 +664,11 @@ export default class VoiceAssistantService extends cds.ApplicationService {
       }
       if (description !== undefined) updates.proposedDescription = description ?? null
       if (dueDate !== undefined) updates.proposedDueDate = dueDate ?? null
+      if (dueTime !== undefined) {
+        if (dueTime && !isDueTime(dueTime)) return fail('INVALID_TIME_FORMAT', 'dueTime must be in HH:mm format, e.g. "14:30".')
+        if (dueTime && !(dueDate ?? task.proposedDueDate)) return fail('DUE_DATE_REQUIRED', 'A due time needs a due date. Ask the user for the date.')
+        updates.proposedDueTime = dueTime || null
+      }
 
       let processor = null
       if (processorName !== undefined) {

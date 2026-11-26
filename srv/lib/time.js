@@ -55,6 +55,13 @@ export function formatLocalTime (tz, date) {
   return `${p.hour}:${p.minute}`
 }
 
+/** "08:00" → "8 Uhr", "14:30" → "14 Uhr 30" – so the voice does not read digits and separators. */
+export function spokenTime (hhmm) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm ?? ''))
+  if (!m) return null
+  return Number(m[2]) ? `${Number(m[1])} Uhr ${Number(m[2])}` : `${Number(m[1])} Uhr`
+}
+
 /** "YYYY-MM-DD" → "TT.MM.JJJJ" (display format for users). */
 export const germanIsoDate = (iso) => String(iso ?? '').replace(/^(\d{4})-(\d{2})-(\d{2}).*$/, '$3.$2.$1')
 

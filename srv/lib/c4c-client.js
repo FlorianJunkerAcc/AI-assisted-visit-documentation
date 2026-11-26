@@ -3,7 +3,7 @@
 // The AI never reaches this module directly – only VoiceAssistantService does.
 import cds from '@sap/cds'
 import { ENTITY_SETS, VISIT_STATUS, TASK, TASK_BTD_REFERENCE, VISIT_ATTACHMENT } from './c4c-codes.js'
-import { parseODataDate } from './time.js'
+import { parseODataDate, zonedTimeToUtc } from './time.js'
 
 const LOG = cds.log('c4c')
 
@@ -241,8 +241,28 @@ export async function patchVisit (objectID, etag, { actualEnd, status } = {}) {
   }
 }
 
+const DEFAULT_DUE_TIME = '17:00' // used when the user names a date but no time
+
+/**
+ * Start/Due of a Task. `dueTime` is the user's local time, converted to UTC for C4C.
+ * C4C rejects a Task with only a due date ("end date and time must be later than start date and
+ * time"), so a Start one hour before the due time is sent as well.
+ */
+export function taskPeriod (dueDateISO, dueTime, timeZone = 'UTC') {
+  if (!dueDateISO) return {}
+  const [y, m, d] = String(dueDateISO).split('-').map(Number)
+  const [hh, mm] = String(dueTime || DEFAULT_DUE_TIME).split(':').map(Number)
+  const due = zonedTimeToUtc(timeZone, y, m, d, hh, mm)
+  return {
+    StartDateTime: toODataDate(new Date(due.getTime() - 3600_000)),
+    StartDatetimeZoneCode: TASK.TIME_ZONE_UTC,
+    DueDateTime: toODataDate(due),
+    DueDatetimeZoneCode: TASK.TIME_ZONE_UTC
+  }
+}
+
 /** Creates a Task in C4C and returns { objectID, id }. */
-export async function createTask ({ subject, dueDateISO, accountUUID, ownerUUID, processorUUID, processorPartyID }) {
+export async function createTask ({ subject, dueDateISO, dueTime, timeZone, accountUUID, ownerUUID, processorUUID, processorPartyID }) {
   const body = {
     Subject: subject,
     DocumentType: TASK.DOCUMENT_TYPE_ACTIVITY_TASK,
@@ -250,15 +270,7 @@ export async function createTask ({ subject, dueDateISO, accountUUID, ownerUUID,
     AccountUUID: accountUUID,
     OwnerUUID: ownerUUID,
     ProcessorUUID: processorUUID,
-    // C4C rejects a Task with only a due date ("end date and time must be later than start date and
-    // time": it derives its own Start). So send an explicit 1h window on the due day (09:00–10:00 UTC),
-    // which keeps the calendar date correct in all time zones from UTC-9 to UTC+13.
-    ...(dueDateISO ? {
-      StartDateTime: toODataDate(new Date(dueDateISO + 'T09:00:00Z')),
-      StartDatetimeZoneCode: TASK.TIME_ZONE_UTC,
-      DueDateTime: toODataDate(new Date(dueDateISO + 'T10:00:00Z')),
-      DueDatetimeZoneCode: TASK.TIME_ZONE_UTC
-    } : {}),
+    ...taskPeriod(dueDateISO, dueTime, timeZone),
     ...(processorPartyID ? { ProcessorPartyID: processorPartyID } : {})
   }
   const res = await request('POST', `/${ENTITY_SETS.task}`, body)

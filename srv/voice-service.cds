@@ -39,12 +39,14 @@ service VoiceAssistantService {
                       subject : String(765),
                       description : LargeString,
                       dueDate : Date,
+                      dueTime : String(5),
                       processorName : String(255))                               returns ToolResult;
   action updateTaskDraft(sessionId : UUID,
                          taskId : UUID,
                          subject : String(765),
                          description : LargeString,
                          dueDate : Date,
+                         dueTime : String(5),
                          processorName : String(255))                            returns ToolResult;
   action removeTaskDraft(sessionId : UUID, taskId : UUID)                        returns ToolResult;
 

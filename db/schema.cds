@@ -128,6 +128,7 @@ entity TaskDrafts : cuid, managed {
   proposedSubject          : String(765);
   proposedDescription      : LargeString;
   proposedDueDate          : Date;
+  proposedDueTime          : String(5); // local time HH:mm of the user, optional
   proposedProcessorName    : String(255); // as spoken, e.g. "Patrick"; empty → processor = user
 
   // --- validated against C4C (set by CAP only) --------------------------------

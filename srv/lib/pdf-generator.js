@@ -107,7 +107,7 @@ export async function generateSummaryPdf (draft, tasks, timeZone) {
       const t = tasks[i]
       const proc = t.c4cProcessorName ? ` (${t.c4cProcessorName})` : ''
       p.line(`${i + 1}. ${t.proposedSubject ?? ''}${proc}`)
-      if (t.proposedDueDate) p.line(`   Fällig: ${germanIsoDate(t.proposedDueDate)}`, 10)
+      if (t.proposedDueDate) p.line(`   Fällig: ${germanIsoDate(t.proposedDueDate)}${t.proposedDueTime ? ` um ${t.proposedDueTime} Uhr` : ''}`, 10)
     }
   }
 
