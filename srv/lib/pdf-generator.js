@@ -120,7 +120,7 @@ export async function generateTranscriptPdf (draft, entries, timeZone) {
 
   const dateStr = draft.c4cPlannedStart ? formatLocalDate(timeZone, new Date(draft.c4cPlannedStart)) : ''
 
-  p.title('Gespraechsprotokoll')
+  p.title('Transkript - KI-gestützte Besuchsdokumentation')
   p.blank()
   p.line(`Konto: ${draft.c4cAccountName ?? ''}`)
   p.line(`Datum: ${dateStr}`)

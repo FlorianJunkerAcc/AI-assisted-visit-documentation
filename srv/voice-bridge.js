@@ -272,6 +272,10 @@ async function handleVoiceConnection (ws, userInfo) {
       if (e.delta) sendBin(Buffer.from(e.delta, 'base64'))
     })
 
+    // Voice activity (server VAD) drives the status display in the browser
+    client.on('input_audio_buffer.speech_started', () => send({ type: 'speech', active: true }))
+    client.on('input_audio_buffer.speech_stopped', () => send({ type: 'speech', active: false }))
+
     // Transcript: user utterance (whisper-1 or VAD-committed audio)
     client.on('conversation.item.input_audio_transcription.completed', (e) => {
       addTranscript('user', e.transcript)
@@ -309,7 +313,10 @@ async function handleVoiceConnection (ws, userInfo) {
         const d = JSON.parse(result.data ?? '{}')
         send({ type: 'commit_preview', previewHash: d.previewHash, previewText: d.previewText })
       } else if (name === 'confirmCommit') {
-        send({ type: 'done', status: result.code === 'COMMIT_COMPLETED' ? 'COMPLETED' : 'PARTIAL_FAILURE', code: result.code })
+        let errors = []
+        try { errors = JSON.parse(result.data ?? '{}')?.errors ?? [] } catch {}
+        const failed = errors.map(e => `${e.what}: ${String(e.lastError).replace(/^C4C \w+ failed( \(\d+\))?:?\s*/, '')}`)
+        send({ type: 'done', status: result.code === 'COMMIT_COMPLETED' ? 'COMPLETED' : 'PARTIAL_FAILURE', code: result.code, failed })
       }
     })
 

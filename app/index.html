@@ -798,16 +798,21 @@
           setStatusState('ready')
         } else if (msg.type === 'transcript') {
           addTranscript(msg.role, msg.text)
-          if (msg.role === 'user') { readySub = null; setStatusState('thinking', 'Verarbeite …') }
+        } else if (msg.type === 'speech') {
+          /* "Zuhoeren" while the user talks, "Denkt nach" only after they stopped */
+          const playing = audioCtx && audioCtx.currentTime < nextPlayAt
+          if (msg.active) readySub = null
+          if (!playing) setStatusState(msg.active ? 'ready' : 'thinking')
         } else if (msg.type === 'commit_preview') {
           $('previewText').textContent = msg.previewText ?? ''
           $('previewCard').hidden = false
           setStatusState('ready', 'Vorschau — bitte bestätigen oder ablehnen')
         } else if (msg.type === 'done') {
           const ok = msg.status === 'COMPLETED'
-          const text = ok ? 'Besuch erfolgreich gespeichert' : 'Teilweise gespeichert (' + msg.code + ')'
+          const text = ok ? 'Besuch erfolgreich gespeichert' : 'Teilweise gespeichert'
           setStatusState(ok ? 'ready' : 'error', text)
-          showMsg(ok ? 'Positive' : 'Critical', text)
+          showMsg(ok ? 'Positive' : 'Critical',
+            !ok && msg.failed?.length ? text + '. Nicht gespeichert – ' + msg.failed.join(' | ') : text)
         } else if (msg.type === 'error') {
           const text = String(msg.message ?? msg.code ?? 'Unbekannter Fehler')
           setStatusState('error', text)

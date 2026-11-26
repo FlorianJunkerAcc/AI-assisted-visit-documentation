@@ -268,11 +268,15 @@ export async function createTask ({ subject, dueDateISO, accountUUID, ownerUUID,
 
 /** Creates a task description (body text). */
 export async function createTaskDescription (taskObjectID, text) {
-  await request('POST', `/${ENTITY_SETS.taskText}`, {
-    ParentObjectID: taskObjectID,
-    TypeCode: TASK.TEXT_TYPE_BODY,
-    Text: text
-  })
+  const body = { TypeCode: TASK.TEXT_TYPE_BODY, Text: text }
+  try {
+    await request('POST', `/${ENTITY_SETS.taskText}`, { ParentObjectID: taskObjectID, ...body })
+  } catch (err) {
+    // The test tenant rejected the flat set ("service is not assigned to you", 2026-11-26) although
+    // the Task itself was created. Retry through the navigation property of the Task (Tasks.xml).
+    LOG.warn('TasksTextCollection POST failed, retrying via Task navigation property', { status: err.status })
+    await request('POST', `/${ENTITY_SETS.task}('${taskObjectID}')/TasksTextCollection`, body)
+  }
 }
 
 /** Creates the BTD reference linking the task back to the Visit (using Visit.ID, not ObjectID). */

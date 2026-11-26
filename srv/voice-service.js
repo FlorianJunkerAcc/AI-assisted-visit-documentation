@@ -414,6 +414,17 @@ export default class VoiceAssistantService extends cds.ApplicationService {
      * Returns { finalStatus, visitObjectID, errors }.
      * Does NOT update VoiceSessions.status – the caller (confirmCommit) does that.
      */
+    // What the user should hear/read when a single commit step fails
+    const OP_LABELS = {
+      ATTACH_SUMMARY_PDF: 'Zusammenfassung als PDF',
+      ATTACH_TRANSCRIPT_PDF: 'Transkript als PDF',
+      CREATE_TASK: 'Folgeaufgabe anlegen',
+      CREATE_TASK_TEXT: 'Beschreibung der Aufgabe (die Aufgabe selbst wurde angelegt)',
+      CREATE_TASK_LINK: 'Verknüpfung der Aufgabe mit dem Besuch (die Aufgabe selbst wurde angelegt)',
+      UPDATE_VISIT_END: 'Tatsächliche Endzeit des Besuchs',
+      UPDATE_VISIT_STATUS: 'Besuch auf "Abgeschlossen" setzen'
+    }
+
     const runCommit = async (session, draft, confirmation, tasks, entries) => {
       const errors = []
       let seq = 0
@@ -458,7 +469,9 @@ export default class VoiceAssistantService extends cds.ApplicationService {
           const lastError = String(err?.message ?? err).slice(0, 1000)
           LOG.error(`commit op ${kind} failed`, { lastError })
           await UPDATE(CommitOperations, opId).with({ status: 'FAILED', lastError })
-          errors.push({ kind, idempotencyKey, lastError })
+          const subject = tasks.find(t => t.ID === taskDraftId)?.proposedSubject
+          const what = (OP_LABELS[kind] ?? kind) + (subject ? ` (Aufgabe "${subject}")` : '')
+          errors.push({ kind, what, idempotencyKey, lastError })
           return { ok: false }
         }
       }
@@ -478,7 +491,7 @@ export default class VoiceAssistantService extends cds.ApplicationService {
         await c4c.createVisitAttachment({
           visitObjectID: draft.c4cVisitObjectID,
           typeCode: VISIT_ATTACHMENT.TYPE_STANDARD,
-          name: 'Gespraechsprotokoll.pdf',
+          name: 'Transkript KI-Besuchsdokumentation.pdf',
           pdfBytes
         })
       })
@@ -565,7 +578,8 @@ export default class VoiceAssistantService extends cds.ApplicationService {
         return ok('COMMIT_COMPLETED', 'All data has been saved to SAP Sales Cloud successfully.')
       }
       return ok('COMMIT_PARTIAL_FAILURE',
-        'Some operations failed. Tell the user which ones failed and why (see errors[].lastError, it contains the SAP Sales Cloud message); ' +
+        'Some operations failed. Name ONLY the steps listed in errors[].what and the reason in errors[].lastError (the SAP Sales Cloud message); ' +
+        'everything not listed was saved. Never say a task was not created unless errors contains kind CREATE_TASK. ' +
         'e.g. a Visit with incomplete mandatory tasks or surveys cannot be set to Completed until they are done in SAP Sales Cloud.',
         { errors })
     })

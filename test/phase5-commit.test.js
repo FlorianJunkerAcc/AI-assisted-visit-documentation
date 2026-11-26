@@ -101,7 +101,7 @@ describe('Phase 5 – confirmCommit (full commit, no tasks)', () => {
     assert.equal(created.attachments.length, 2)
     const names = created.attachments.map(a => a.Name)
     assert.ok(names.some(n => n.includes('Besuchszusammenfassung')), `summary PDF must be attached; found: ${names}`)
-    assert.ok(names.some(n => n.includes('Gespr')), `transcript PDF must be attached; found: ${names}`)
+    assert.ok(names.some(n => n.includes('Transkript KI-Besuchsdokumentation')), `transcript PDF must be attached; found: ${names}`)
   })
 
   it('patches the visit end time and sets visit status to COMPLETED (3)', async () => {
