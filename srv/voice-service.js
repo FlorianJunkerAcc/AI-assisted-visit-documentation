@@ -401,7 +401,7 @@ export default class VoiceAssistantService extends cds.ApplicationService {
 
       await UPDATE(VoiceSessions, session.ID).with({ status: 'PREVIEW' })
 
-      return ok('COMMIT_PREVIEW', 'Read this preview text to the user verbatim, then ask for explicit yes/no confirmation. Pass the hash to confirmCommit together with the user\'s utterance.', {
+      return ok('COMMIT_PREVIEW', 'The preview is shown on the user\'s screen, do not read it out. Name only the key facts (customer, end time, tasks) in one or two short sentences. Then ask whether you should read the summary again (a yes to that is NOT a save confirmation). After that, ask separately for explicit yes/no confirmation to save. Pass the hash to confirmCommit together with the user\'s utterance.', {
         previewHash,
         previewText
       })
@@ -541,7 +541,7 @@ export default class VoiceAssistantService extends cds.ApplicationService {
         return fail('DENIED', 'The user did not confirm. Ask if they want to change something, then call prepareCommitPreview again.')
       }
       if (!hasYes) {
-        return fail('UNCLEAR', 'The utterance does not clearly confirm. Read the preview again and ask for a clear yes or no.')
+        return fail('UNCLEAR', 'The utterance does not clearly confirm. Briefly ask again for a clear yes or no.')
       }
 
       await UPDATE(CommitConfirmations, confirmation.ID).with({
