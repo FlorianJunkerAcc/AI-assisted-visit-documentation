@@ -55,6 +55,14 @@ export function formatLocalTime (tz, date) {
   return `${p.hour}:${p.minute}`
 }
 
+/** "YYYY-MM-DD" → "TT.MM.JJJJ" (display format for users). */
+export const germanIsoDate = (iso) => String(iso ?? '').replace(/^(\d{4})-(\d{2})-(\d{2}).*$/, '$3.$2.$1')
+
+/** "TT.MM.JJJJ" of `date` in `tz`. */
+export function formatGermanDate (tz, date) {
+  return date ? germanIsoDate(formatLocalDate(tz, date)) : null
+}
+
 /** "YYYY-MM-DD" of `date` in `tz`. */
 export function formatLocalDate (tz, date) {
   if (!date) return null

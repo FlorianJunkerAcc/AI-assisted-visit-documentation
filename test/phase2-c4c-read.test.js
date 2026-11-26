@@ -96,7 +96,7 @@ describe('Phase 2 – findVisit', () => {
     assert.equal(res.code, 'VISIT_FOUND')
     const { candidates } = data(res)
     assert.equal(candidates.length, 1)
-    assert.equal(candidates[0].account, 'Beispiel GmbH')
+    assert.equal(candidates[0].customer, 'Beispiel GmbH')
     assert.equal(candidates[0].startTime, '10:00')
   })
 
@@ -117,7 +117,7 @@ describe('Phase 2 – findVisit', () => {
     const sessionId = await start()
     const res = await call(alice, 'findVisit', { sessionId })
     assert.equal(res.code, 'AMBIGUOUS')
-    assert.deepEqual(data(res).candidates.map(c => c.account), ['Beispiel GmbH', 'Muster AG'])
+    assert.deepEqual(data(res).candidates.map(c => c.customer), ['Beispiel GmbH', 'Muster AG'])
     const { VisitDrafts } = cds.entities('voice')
     assert.equal((await SELECT.from(VisitDrafts).where({ session_ID: sessionId })).length, 0)
   })

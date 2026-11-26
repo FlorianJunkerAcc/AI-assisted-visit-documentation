@@ -71,6 +71,13 @@ async function handleVoiceConnection (ws, userInfo) {
   let audioReady = false // true once the AI Core socket is open AND the audio session is configured
   let transcriptSeq = 0
 
+  // Several Visits can be documented in one conversation: each one gets its own CAP session
+  // (own draft, tasks, transcript) and a fresh AI context.
+  let startParams = {}
+  let currentVisit = null     // { visitId, customer, startTime } of the selected Visit
+  let committed = false       // true once the current Visit has been written to C4C
+  const documented = []       // Visits already saved in this conversation
+
   // AI Core allows only one active response per conversation. A tool result often arrives while
   // the response that requested the tool is still running, so response.create has to wait.
   let responseActive = false
@@ -150,6 +157,7 @@ async function handleVoiceConnection (ws, userInfo) {
   // --- start: open CAP session + connect to AI Core ---
   async function handleStart ({ timeZone, language }) {
     if (sessionId) { send({ type: 'error', code: 'ALREADY_STARTED', message: 'Session already running.' }); return }
+    startParams = { timeZone, language }
 
     const startRes = await callTool('startSession', { timeZone: timeZone ?? 'UTC', language: language ?? 'de' })
     if (!startRes.ok) { send({ type: 'error', code: startRes.code, message: startRes.message }); return }
@@ -236,10 +244,42 @@ async function handleVoiceConnection (ws, userInfo) {
           }
         })
       } else if (initStep === 2) {
-        audioReady = true
-        requestResponse() // greeting
+        greet()
       }
     })
+
+    // The Visit is searched BEFORE the first answer, so greeting and result come in one go
+    // (no "one moment, let me look it up" in between).
+    const greet = async () => {
+      const found = await callTool('findVisit')
+      if (!aiClient || !sessionId) return
+
+      let note = ''
+      if (documented.length) {
+        // Follow-up Visit: no second greeting, and mark Visits that were just documented
+        // (they can still be "Open" in C4C, e.g. if setting the status failed).
+        try {
+          const data = JSON.parse(found.data ?? 'null')
+          for (const c of data?.candidates ?? []) {
+            if (documented.some(d => d.visitId === c.visitId)) c.alreadyDocumented = true
+          }
+          if (data) found.data = JSON.stringify(data)
+        } catch {}
+        note = ' Dies ist ein WEITERER Besuch im selben Gespräch: begrüße nicht erneut. Biete Besuche mit alreadyDocumented=true nicht an. ' +
+          'Bleibt kein anderer Besuch übrig, sage, dass es heute keinen weiteren offenen Besuch gibt, und verabschiede dich.'
+      }
+      aiClient.send({
+        type: 'conversation.item.create',
+        item: {
+          type: 'message',
+          role: 'system',
+          content: [{ type: 'input_text', text: `Ergebnis von findVisit (bereits ausgeführt, nicht erneut aufrufen): ${JSON.stringify(found)}${note}` }]
+        }
+      })
+      audioReady = true
+      requestResponse() // greeting
+      send({ type: 'ready', sessionId })
+    }
 
     // Update 1: instructions + tools in text mode (proven by spike)
     aiClient.send({
@@ -253,8 +293,22 @@ async function handleVoiceConnection (ws, userInfo) {
       }
     })
 
-    send({ type: 'ready', sessionId })
     LOG.info('session ready', { sessionId, userId: userInfo.userId })
+  }
+
+  /** Closes the finished Visit (it stays saved) and starts a clean session for the next one. */
+  async function startNextVisit () {
+    const old = aiClient
+    aiClient = null            // handlers of the old client ignore everything from now on
+    audioReady = false
+    if (old) { try { old.close() } catch {} }
+
+    sessionId = null           // the committed session is NOT cancelled
+    transcriptSeq = 0
+    currentVisit = null
+    committed = false
+    send({ type: 'new_visit' }) // browser clears transcript and preview
+    await handleStart(startParams)
   }
 
   async function handleStop () {
@@ -269,7 +323,7 @@ async function handleVoiceConnection (ws, userInfo) {
   function attachAiHandlers (client) {
     // Audio out → browser (binary PCM16)
     client.on('response.output_audio.delta', (e) => {
-      if (e.delta) sendBin(Buffer.from(e.delta, 'base64'))
+      if (client === aiClient && e.delta) sendBin(Buffer.from(e.delta, 'base64'))
     })
 
     // Voice activity (server VAD) drives the status display in the browser
@@ -278,12 +332,12 @@ async function handleVoiceConnection (ws, userInfo) {
 
     // Transcript: user utterance (whisper-1 or VAD-committed audio)
     client.on('conversation.item.input_audio_transcription.completed', (e) => {
-      addTranscript('user', e.transcript)
+      if (client === aiClient) addTranscript('user', e.transcript)
     })
 
     // Transcript: assistant speech (output audio transcript)
     client.on('response.output_audio_transcript.done', (e) => {
-      addTranscript('assistant', e.transcript)
+      if (client === aiClient) addTranscript('assistant', e.transcript)
     })
 
     // Tool calls – dispatch to VoiceAssistantService, return result to AI Core
@@ -292,6 +346,22 @@ async function handleVoiceConnection (ws, userInfo) {
       let args
       try { args = JSON.parse(argsStr ?? '{}') } catch { args = {} }
       LOG.debug('tool call', { name, args })
+      if (client !== aiClient) return
+
+      // Handled here (not a CAP action): only allowed after the current Visit was saved,
+      // so unsaved data can never be thrown away.
+      if (name === 'startNextVisit') {
+        if (committed) { await startNextVisit(); return }
+        client.send({
+          type: 'conversation.item.create',
+          item: {
+            type: 'function_call_output', call_id,
+            output: JSON.stringify({ ok: false, code: 'NOT_SAVED_YET', message: 'The current Visit is not saved yet. Finish and save it first.' })
+          }
+        })
+        requestResponse()
+        return
+      }
 
       openToolCalls++
       let result
@@ -308,11 +378,19 @@ async function handleVoiceConnection (ws, userInfo) {
       }
       requestResponse() // sent now, or after the running response is done
 
+      if (name === 'selectVisit' && result.ok) {
+        try { currentVisit = JSON.parse(result.data ?? 'null') } catch {}
+      }
+      if (name === 'confirmCommit' && ['COMMIT_COMPLETED', 'COMMIT_PARTIAL_FAILURE'].includes(result.code)) {
+        committed = true
+        if (currentVisit) documented.push(currentVisit)
+      }
+
       // Forward notable results to the browser UI
       if (name === 'prepareCommitPreview' && result.ok) {
         const d = JSON.parse(result.data ?? '{}')
         send({ type: 'commit_preview', previewHash: d.previewHash, previewText: d.previewText })
-      } else if (name === 'confirmCommit') {
+      } else if (name === 'confirmCommit' && ['COMMIT_COMPLETED', 'COMMIT_PARTIAL_FAILURE'].includes(result.code)) {
         let errors = []
         try { errors = JSON.parse(result.data ?? '{}')?.errors ?? [] } catch {}
         const failed = errors.map(e => `${e.what}: ${String(e.lastError).replace(/^C4C \w+ failed( \(\d+\))?:?\s*/, '')}`)
@@ -321,8 +399,8 @@ async function handleVoiceConnection (ws, userInfo) {
     })
 
     // Also covers responses started by server VAD, not only our own response.create
-    client.on('response.created', () => { responseActive = true })
-    client.on('response.done', () => { responseActive = false; flushResponse() })
+    client.on('response.created', () => { if (client === aiClient) responseActive = true })
+    client.on('response.done', () => { if (client === aiClient) { responseActive = false; flushResponse() } })
 
     client.on('error', (e) => {
       // Remaining race (server VAD started a response at the same moment): harmless, retry later

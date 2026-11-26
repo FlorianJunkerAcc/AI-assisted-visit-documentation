@@ -1,7 +1,7 @@
 // Generates PDFs for the commit step using pdf-lib (standard fonts, WinAnsi-safe).
 // German umlauts (ä ö ü Ä Ö Ü ß) are in the Latin-1 range and work with Helvetica.
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
-import { formatLocalDate, formatLocalTime } from './time.js'
+import { formatGermanDate, germanIsoDate, formatLocalTime } from './time.js'
 
 const PAGE_W = 595.28  // A4
 const PAGE_H = 841.89  // A4
@@ -85,7 +85,7 @@ export async function generateSummaryPdf (draft, tasks, timeZone) {
   const { doc, regular, bold } = await newDoc()
   const p = new Painter(doc, regular, bold)
 
-  const dateStr = draft.c4cPlannedStart ? formatLocalDate(timeZone, new Date(draft.c4cPlannedStart)) : ''
+  const dateStr = draft.c4cPlannedStart ? formatGermanDate(timeZone, new Date(draft.c4cPlannedStart)) : ''
   const startStr = draft.c4cPlannedStart ? formatLocalTime(timeZone, new Date(draft.c4cPlannedStart)) : ''
   const endStr = (draft.proposedActualEnd ?? draft.c4cPlannedEnd)
     ? formatLocalTime(timeZone, new Date(draft.proposedActualEnd ?? draft.c4cPlannedEnd))
@@ -93,7 +93,7 @@ export async function generateSummaryPdf (draft, tasks, timeZone) {
 
   p.title('Besuchszusammenfassung')
   p.blank()
-  p.line(`Konto: ${draft.c4cAccountName ?? ''}`)
+  p.line(`Kunde: ${draft.c4cAccountName ?? ''}`)
   p.line(`Datum: ${dateStr}, ${startStr} - ${endStr}`)
   p.line(`Thema: ${draft.c4cSubject ?? ''}`)
   p.blank()
@@ -107,7 +107,7 @@ export async function generateSummaryPdf (draft, tasks, timeZone) {
       const t = tasks[i]
       const proc = t.c4cProcessorName ? ` (${t.c4cProcessorName})` : ''
       p.line(`${i + 1}. ${t.proposedSubject ?? ''}${proc}`)
-      if (t.proposedDueDate) p.line(`   Faellig: ${t.proposedDueDate}`, 10)
+      if (t.proposedDueDate) p.line(`   Fällig: ${germanIsoDate(t.proposedDueDate)}`, 10)
     }
   }
 
@@ -118,11 +118,11 @@ export async function generateTranscriptPdf (draft, entries, timeZone) {
   const { doc, regular, bold } = await newDoc()
   const p = new Painter(doc, regular, bold)
 
-  const dateStr = draft.c4cPlannedStart ? formatLocalDate(timeZone, new Date(draft.c4cPlannedStart)) : ''
+  const dateStr = draft.c4cPlannedStart ? formatGermanDate(timeZone, new Date(draft.c4cPlannedStart)) : ''
 
   p.title('Transkript - KI-gestützte Besuchsdokumentation')
   p.blank()
-  p.line(`Konto: ${draft.c4cAccountName ?? ''}`)
+  p.line(`Kunde: ${draft.c4cAccountName ?? ''}`)
   p.line(`Datum: ${dateStr}`)
   p.blank()
 

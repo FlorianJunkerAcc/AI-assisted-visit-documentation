@@ -4,7 +4,7 @@ import { ok, fail } from './lib/tool-result.js'
 import { isValidTimeZone, normaliseLanguage } from './lib/validation.js'
 import * as c4c from './lib/c4c-client.js'
 import { VISIT_ATTACHMENT, VISIT_STATUS } from './lib/c4c-codes.js'
-import { localDayRangeUtc, formatLocalTime, formatLocalDate, zonedTimeToUtc, localDate } from './lib/time.js'
+import { localDayRangeUtc, formatLocalTime, formatGermanDate, germanIsoDate, zonedTimeToUtc, localDate } from './lib/time.js'
 import { generateSummaryPdf, generateTranscriptPdf } from './lib/pdf-generator.js'
 
 const LOG = cds.log('voice')
@@ -122,9 +122,9 @@ export default class VoiceAssistantService extends cds.ApplicationService {
 
     const visitForAi = (v, tz) => ({
       visitId: v.objectID, // opaque reference for selectVisit
-      account: v.accountName,
+      customer: v.accountName,
       subject: v.subject,
-      date: formatLocalDate(tz, v.start),
+      date: formatGermanDate(tz, v.start),
       startTime: formatLocalTime(tz, v.start),
       endTime: formatLocalTime(tz, v.end)
     })
@@ -152,9 +152,9 @@ export default class VoiceAssistantService extends cds.ApplicationService {
       }
       const candidates = visits.map(v => visitForAi(v, session.timeZone))
       if (visits.length === 1) {
-        return ok('VISIT_FOUND', 'Exactly one Visit found. Ask the user to confirm it (account and time) before calling selectVisit.', { candidates })
+        return ok('VISIT_FOUND', 'Exactly one Visit found. Ask the user to confirm it (customer name and time; in German say "Kunde", never "Account") before calling selectVisit.', { candidates })
       }
-      return ok('AMBIGUOUS', 'Several Visits found. Ask the user which one is meant (e.g. by account or time) – do not read out a long list and never guess. Then call selectVisit.', { candidates })
+      return ok('AMBIGUOUS', 'Several Visits found. Ask the user which one is meant (e.g. by customer or time; in German say "Kunde", never "Account") – do not read out a long list and never guess. Then call selectVisit.', { candidates })
     })
 
     this.on('selectVisit', async (req) => {
@@ -370,11 +370,11 @@ export default class VoiceAssistantService extends cds.ApplicationService {
       const isDE = session.language === 'de'
       const startTimeStr = formatLocalTime(session.timeZone, new Date(draft.c4cPlannedStart))
       const endTimeStr = formatLocalTime(session.timeZone, new Date(effectiveEnd))
-      const visitDateStr = formatLocalDate(session.timeZone, new Date(draft.c4cPlannedStart))
+      const visitDateStr = formatGermanDate(session.timeZone, new Date(draft.c4cPlannedStart))
 
       const taskLines = tasks.map((t, i) => isDE
-        ? `  Aufgabe ${i + 1}: ${t.proposedSubject}${t.c4cProcessorName ? ` (Zuständig: ${t.c4cProcessorName})` : ''}`
-        : `  Task ${i + 1}: ${t.proposedSubject}${t.c4cProcessorName ? ` (Assigned to: ${t.c4cProcessorName})` : ''}`)
+        ? `  Aufgabe ${i + 1}: ${t.proposedSubject}${t.c4cProcessorName ? ` (Zuständig: ${t.c4cProcessorName})` : ''}${t.proposedDueDate ? `, fällig am ${germanIsoDate(t.proposedDueDate)}` : ''}`
+        : `  Task ${i + 1}: ${t.proposedSubject}${t.c4cProcessorName ? ` (Assigned to: ${t.c4cProcessorName})` : ''}${t.proposedDueDate ? `, due ${germanIsoDate(t.proposedDueDate)}` : ''}`)
 
       let previewText
       if (isDE) {

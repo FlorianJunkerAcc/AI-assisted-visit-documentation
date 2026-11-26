@@ -9,7 +9,8 @@ import { createVoiceToken } from '../srv/voice-bridge.js'
 const EXPECTED_TOOL_NAMES = [
   'findVisit', 'selectVisit', 'getVisitContext', 'resolveEmployee',
   'updateVisitDraft', 'addTaskDraft', 'updateTaskDraft', 'removeTaskDraft',
-  'prepareCommitPreview', 'confirmCommit'
+  'prepareCommitPreview', 'confirmCommit',
+  'startNextVisit' // handled by the bridge itself
 ]
 
 describe('Phase 6 – AI tool definitions', () => {

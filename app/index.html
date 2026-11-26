@@ -513,7 +513,7 @@
     ===================================================================== */
 
     const $ = (id) => document.getElementById(id)
-    let ws = null, audioCtx = null, micStream = null, scriptProc = null, micAn = null, outAn = null
+    let ws = null, audioCtx = null, micStream = null, scriptProc = null, micAn = null, outAn = null, micCtx = null
     let nextPlayAt = 0, stopping = false
 
     /* app state -> halo mode, label, default sub-text */
@@ -621,27 +621,41 @@
 
     /* ---- Microphone: Float32 → PCM16 ---- */
 
+    /* audioCtx = playback (frozen during a pause), micCtx = capture (torn down during a pause) */
     async function startMicrophone () {
-      micStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1, sampleRate: 24000,
-          echoCancellation: true, noiseSuppression: true, autoGainControl: false
-        },
-        video: false
-      })
-      audioCtx   = new AudioContext({ sampleRate: 24000 })
+      audioCtx = new AudioContext({ sampleRate: 24000 })
       if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {})
       nextPlayAt = 0
-
-      micAn = audioCtx.createAnalyser(); micAn.fftSize = 512; micAn.smoothingTimeConstant = 0
       outAn = audioCtx.createAnalyser(); outAn.fftSize = 512; outAn.smoothingTimeConstant = 0
       outAn.connect(audioCtx.destination)
+      Halo.setSource('speaking', outAn, 6)
+      await startCapture()
+    }
+
+    async function startCapture () {
+      const ctx = new AudioContext({ sampleRate: 24000 }) // before any await: still inside the click gesture
+      ctx.resume().catch(() => {})
+      let stream
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: 1, sampleRate: 24000,
+            echoCancellation: true, noiseSuppression: true, autoGainControl: false
+          },
+          video: false
+        })
+      } catch (err) {
+        ctx.close()
+        throw err
+      }
+      micCtx = ctx
+      micStream = stream
+
+      micAn = ctx.createAnalyser(); micAn.fftSize = 512; micAn.smoothingTimeConstant = 0
       Halo.setSource('listening', micAn, 14)
-      Halo.setSource('speaking',  outAn, 6)
 
-      const src  = audioCtx.createMediaStreamSource(micStream)
-      scriptProc = audioCtx.createScriptProcessor(4096, 1, 1)
-
+      const src  = ctx.createMediaStreamSource(stream)
+      scriptProc = ctx.createScriptProcessor(4096, 1, 1)
       scriptProc.onaudioprocess = (e) => {
         if (paused || !ws || ws.readyState !== WebSocket.OPEN) return
         const f32 = e.inputBuffer.getChannelData(0)
@@ -652,15 +666,22 @@
       }
       src.connect(micAn)
       src.connect(scriptProc)
-      scriptProc.connect(audioCtx.destination)
+      scriptProc.connect(ctx.destination)
+    }
+
+    function stopCapture () {
+      Halo.setSource('listening', null)
+      if (scriptProc) { scriptProc.onaudioprocess = null; try { scriptProc.disconnect() } catch {} scriptProc = null }
+      if (micStream)  { micStream.getTracks().forEach(t => t.stop()); micStream = null }
+      if (micCtx)     { try { micCtx.close() } catch {} micCtx = null }
+      micAn = null
     }
 
     function stopAudio () {
-      Halo.setSource('listening', null); Halo.setSource('speaking', null)
-      if (scriptProc) { try { scriptProc.disconnect() } catch {} scriptProc = null }
-      if (micStream)  { micStream.getTracks().forEach(t => t.stop()); micStream = null }
-      if (audioCtx)   { try { audioCtx.close() } catch {} audioCtx = null }
-      micAn = outAn = null
+      stopCapture()
+      Halo.setSource('speaking', null)
+      if (audioCtx) { try { audioCtx.close() } catch {} audioCtx = null }
+      outAn = null
     }
 
     /* ---- Session lifecycle ---- */
@@ -675,28 +696,35 @@
       btn.design = paused ? 'Emphasized' : 'Default'
     }
 
-    function setMicEnabled (on) {
-      if (micStream) micStream.getAudioTracks().forEach(t => { t.enabled = on })
-    }
-
     function pauseSession () {
       if (paused || !audioCtx) return
       resumeTo = [curState, curState === 'ready' ? undefined : curSub]
       paused = true
-      setMicEnabled(false)
-      audioCtx.suspend().catch(() => {}) // freezes playback; it continues where it stopped
+      stopCapture()                       // releases the microphone completely
+      audioCtx.suspend().catch(() => {})  // freezes playback; it continues where it stopped
       setStatusState('paused')
       setPauseButton()
     }
 
-    function resumeSession () {
+    async function resumeSession () {
       if (!paused) return
-      paused = false
-      setMicEnabled(true)
+      $('pauseBtn').disabled = true
       if (audioCtx) audioCtx.resume().catch(() => {})
+      try {
+        await startCapture()              // fresh microphone stream and audio graph
+      } catch (err) {
+        if (audioCtx) audioCtx.suspend().catch(() => {})
+        showMsg('Negative', 'Mikrofon konnte nicht neu gestartet werden: ' + err.message)
+        $('pauseBtn').disabled = false
+        return
+      }
+      if (!paused) { stopCapture(); return } // the session was ended in the meantime
+      paused = false
+      hideMsg()
       const [state, text] = resumeTo ?? ['ready']
       setStatusState(state, text ?? (state === 'ready' ? readySub ?? undefined : undefined))
       setPauseButton()
+      $('pauseBtn').disabled = false
     }
 
     function resetPause () {
@@ -798,6 +826,17 @@
           setStatusState('ready')
         } else if (msg.type === 'transcript') {
           addTranscript(msg.role, msg.text)
+        } else if (msg.type === 'new_visit') {
+          $('transcript').replaceChildren()
+          $('previewCard').hidden = true
+          $('previewText').textContent = ''
+          /* keep a failure message of the previous visit visible, drop a success message */
+          const strip = $('msgStrip')
+          if (!strip.hidden && strip.design === 'Positive') hideMsg()
+          else if (!strip.hidden && !strip.textContent.startsWith('Vorheriger Besuch')) strip.textContent = 'Vorheriger Besuch: ' + strip.textContent
+          readySub = null
+          $('pauseBtn').disabled = true
+          setStatusState('connecting', 'Nächster Besuch wird gesucht …')
         } else if (msg.type === 'speech') {
           /* "Zuhoeren" while the user talks, "Denkt nach" only after they stopped */
           const playing = audioCtx && audioCtx.currentTime < nextPlayAt
