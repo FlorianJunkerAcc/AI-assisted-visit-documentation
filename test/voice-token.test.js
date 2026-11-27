@@ -13,8 +13,10 @@ const get = (user) => fetch(server.url + '/api/voice-token', {
 })
 
 describe('GET /api/voice-token', () => {
-  it('rejects anonymous requests with 401', async () => {
-    assert.equal((await get()).status, 401)
+  it('rejects anonymous requests with 401 and offers the developer login', async () => {
+    const res = await get()
+    assert.equal(res.status, 401)
+    assert.equal((await res.json()).devLogin, true)
   })
 
   it('rejects a user without the role with 403', async () => {

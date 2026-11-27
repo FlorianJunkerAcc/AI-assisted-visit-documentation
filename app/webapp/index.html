@@ -766,6 +766,13 @@
       try {
         let res = await fetch('/api/voice-token', { headers })
         if (res.status === 401 && credFields.hidden) {
+          // The user name fields exist for local development only; the server says when.
+          const body = await res.json().catch(() => ({}))
+          if (!body.devLogin) {
+            loginErr('Anmeldung fehlgeschlagen. Bitte lade die Seite neu.')
+            $('startBtn').disabled = false
+            return
+          }
           credFields.hidden = false
           showMsg('Information', 'Bitte Zugangsdaten eingeben (Entwicklungsmodus).')
           $('startBtn').disabled = false

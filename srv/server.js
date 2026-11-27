@@ -12,14 +12,15 @@ import { createVoiceToken, registerVoiceBridge } from './voice-bridge.js'
 const LOG = cds.log('server')
 
 // Token endpoint – cds.middlewares.before runs authentication first.
-// In development (mocked auth) req.user is populated from Basic Auth headers.
-// In production (XSUAA) req.user is populated from the JWT forwarded by the App Router.
+// In development (mocked auth) the user comes from Basic Auth headers.
+// In production (XSUAA) the user comes from the JWT forwarded by the App Router.
 //
 // Dev-only fallback: BAS tunnels may strip Authorization headers. Only with mocked auth and
 // outside production, ?_dev_user=alice is then accepted as a stand-in.
 cds.on('served', () => {
   cds.app.get('/api/voice-token', cds.middlewares.before, (req, res) => {
-    let user = req.user
+    // jwt/xsuaa auth only fills cds.context.user (req.user stays empty), mocked auth fills both.
+    let user = cds.context?.user
     const devFallback = process.env.NODE_ENV !== 'production' && cds.env.requires?.auth?.kind === 'mocked'
     if (!user?.is('authenticated-user') && devFallback) {
       const devUser = req.query._dev_user
@@ -30,7 +31,7 @@ cds.on('served', () => {
         }
       }
     }
-    if (!user?.is('authenticated-user')) return res.status(401).json({ error: 'Unauthorized' })
+    if (!user?.is('authenticated-user')) return res.status(401).json({ error: 'Unauthorized', devLogin: devFallback })
     if (!user.is('VisitDocumenter')) return res.status(403).json({ error: 'Forbidden' })
     res.json({ token: createVoiceToken(user) })
   })
