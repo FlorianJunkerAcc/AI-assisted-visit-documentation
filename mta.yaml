@@ -22,6 +22,8 @@ modules:
       memory: 512M
       disk-quota: 1024M
       buildpack: nodejs_buildpack
+    properties:
+      NODE_ENV: production # selects XSUAA auth and disables the developer login
     build-parameters:
       builder: npm-ci
     provides:
@@ -61,6 +63,12 @@ resources:
       config:
         xsappname: aiAssistedVisitDocumentation-${org}-${space}
         tenant-mode: dedicated
+        # Set here (not in xs-security.json) so the landscape domain is filled in at deploy time.
+        oauth2-configuration:
+          token-validity: 43200
+          refresh-token-validity: 2592000
+          redirect-uris:
+            - https://*.${default-domain}/**
 
   # --- Destination service --------------------------------------------------
   - name: aiAssistedVisitDocumentation-dest

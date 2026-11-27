@@ -2,8 +2,11 @@
   "name": "ai-assisted-visit-documentation-approuter",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": "^22.0.0 || ^24.0.0"
+  },
   "dependencies": {
-    "@sap/approuter": "^16"
+    "@sap/approuter": "^23"
   },
   "scripts": {
     "start": "node node_modules/@sap/approuter/approuter.js"

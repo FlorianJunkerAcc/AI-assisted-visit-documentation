@@ -1,6 +1,6 @@
 // Entry point of the UI5 Web Components bundle (SAP Horizon / Fiori).
-// Built with `npm run build:ui` into app/ui5.bundle.js (esbuild, one file, no CDN at runtime).
-// Only the components that app/index.html actually uses are imported.
+// Built with `npm run build:ui` into app/webapp/ui5.bundle.js (esbuild, one file, no CDN at runtime).
+// Only the components that app/webapp/index.html actually uses are imported.
 
 // Assets (theme parameters, i18n) – slim version, see assets.js. Must come before setTheme/setLanguage.
 import './assets.js'

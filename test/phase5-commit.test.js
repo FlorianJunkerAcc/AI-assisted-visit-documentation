@@ -130,6 +130,22 @@ describe('Phase 5 – confirmCommit (full commit, no tasks)', () => {
   })
 })
 
+describe('Phase 5 – confirmCommit (refusals)', () => {
+  const refusals = ['Nein, bitte nicht speichern.', 'Bitte noch nicht.', 'Ja, aber ändern.',
+    "No, please don't save.", 'Warte, bitte.']
+
+  for (const userUtterance of refusals) {
+    it(`does not write to C4C after "${userUtterance}"`, async () => {
+      const { sessionId, previewHash } = await previewSession()
+      const res = await call(alice, 'confirmCommit', { sessionId, previewHash, userUtterance })
+
+      assert.equal(res.ok, false)
+      assert.equal(res.code, 'DENIED')
+      assert.equal(created.attachments.length, 0)
+    })
+  }
+})
+
 describe('Phase 5 – confirmCommit (full commit, with task)', () => {
   it('creates a C4C task with description text and visit link', async () => {
     const { sessionId, previewHash } = await previewSessionWithTask()

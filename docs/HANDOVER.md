@@ -70,7 +70,7 @@ Die Quellen liegen in `docs/c4c-metadata/`, die Konstanten in `srv/lib/c4c-codes
 
 | Datei | Inhalt |
 |---|---|
-| `package.json` | CAP 10 (ESM). Abhängigkeiten: `@cap-js/sqlite` (`:memory:`), `pdf-lib ^1.17.1`, `@sap-ai-sdk/openai ^2.15.0`, `ws ^8`, `@sap/xssec ^3`. Mock-User: alice und carol mit Rolle `VisitDocumenter`, bob ohne Rolle. `cds.voice` enthält AI-Core-Konfiguration. `[production].auth.kind = xsuaa`. `[development]` und `[hybrid]` verwenden beide mocked-Auth mit denselben Usern (hybrid für `cds watch --profile hybrid`). |
+| `package.json` | CAP 10 (ESM). Abhängigkeiten: `@cap-js/sqlite` (`:memory:`), `pdf-lib ^1.17.1`, `@sap-ai-sdk/openai ^2.15.0`, `ws ^8`, `@sap/xssec ^4`. Mock-User: alice und carol mit Rolle `VisitDocumenter`, bob ohne Rolle. `cds.voice` enthält AI-Core-Konfiguration. `[production].auth.kind = xsuaa`. `[development]` und `[hybrid]` verwenden beide mocked-Auth mit denselben Usern (hybrid für `cds watch --profile hybrid`). |
 | `db/schema.cds` | VoiceSessions, TranscriptEntries, VisitDrafts, TaskDrafts, CommitConfirmations, CommitOperations (Idempotenz, eindeutiger `idempotencyKey`) und AuditLog. Konvention: `c4c*` = von CAP geprüft, `proposed*` = Vorschlag der KI. |
 | `srv/voice-service.cds` | `VoiceAssistantService`, `@protocol:'none'` (nicht über HTTP erreichbar), `@requires:'VisitDocumenter'`. Alle Tools geben `ToolResult {ok, code, message, data(JSON)}` zurück. |
 | `srv/voice-service.js` | Alle 10 Tools vollständig implementiert (kein 501 mehr): startSession, cancelSession, findVisit, selectVisit, getVisitContext, resolveEmployee, updateVisitDraft, addTaskDraft, updateTaskDraft, removeTaskDraft, prepareCommitPreview, confirmCommit. `runCommit` führt alle C4C-Writes synchron mit Idempotenzprüfung aus. |
@@ -82,12 +82,12 @@ Die Quellen liegen in `docs/c4c-metadata/`, die Konstanten in `srv/lib/c4c-codes
 | `srv/lib/c4c-codes.js` | alle bestätigten Code-Werte mit Quellenangabe |
 | `srv/lib/time.js` | Tagesgrenzen in der Zeitzone (inklusive Zeitumstellung), OData-Datumswerte |
 | `srv/lib/validation.js`, `srv/lib/tool-result.js` | Eingabeprüfung und Ergebnisformat |
-| `app/ui5.bundle.js` | **Generiert** (esbuild, ~1,3 MB / 281 KB gzip): offizielle SAP UI5 Web Components (Horizon Light/Dark, DE/EN, kein CDN zur Laufzeit). Wird committet, damit der Approuter ohne Build ausliefert. Neu erzeugen mit `npm install && npm run build:ui` (Quellen: `ui-src/ui5.js`, `ui-src/assets.js`; neue Komponenten/Icons/Themes dort ergänzen). |
-| `app/index.html` | SAP-Fiori-UI (Horizon) mit UI5 Web Components: ShellBar mit Light/Dark-Umschalter, Karten, Message Strip, Panel/Liste fürs Transkript. Der AI Voice Halo (WebGL) bleibt in jedem Theme dunkel. Credentials-Felder sind standardmäßig versteckt; bei 401 auf `/api/voice-token` erscheinen sie automatisch. Bei weiterem 401 (BAS-Tunnel filtert Basic-Auth) wird automatisch `?_dev_user=<username>` als Fallback verwendet. In Produktion (App Router + XSUAA) werden Felder nie angezeigt. WebSocket, PCM16-Mikrofon via `ScriptProcessorNode`, PCM16-Wiedergabe via `AudioContext`. |
+| `app/webapp/ui5.bundle.js` | **Generiert** (esbuild, ~1,3 MB / 281 KB gzip): offizielle SAP UI5 Web Components (Horizon Light/Dark, DE/EN, kein CDN zur Laufzeit). Wird committet, damit der Approuter ohne Build ausliefert. Neu erzeugen mit `npm install && npm run build:ui` (Quellen: `ui-src/ui5.js`, `ui-src/assets.js`; neue Komponenten/Icons/Themes dort ergänzen). |
+| `app/webapp/index.html` | SAP-Fiori-UI (Horizon) mit UI5 Web Components: ShellBar mit Light/Dark-Umschalter, Karten, Message Strip, Panel/Liste fürs Transkript. Der AI Voice Halo (WebGL) bleibt in jedem Theme dunkel. Credentials-Felder sind standardmäßig versteckt; bei 401 auf `/api/voice-token` erscheinen sie automatisch. Bei weiterem 401 (BAS-Tunnel filtert Basic-Auth) wird automatisch `?_dev_user=<username>` als Fallback verwendet. In Produktion (App Router + XSUAA) werden Felder nie angezeigt. WebSocket, PCM16-Mikrofon via `ScriptProcessorNode`, PCM16-Wiedergabe via `AudioContext`. |
 | `app/xs-app.json` | App-Router-Routing: `/api/voice-token` → XSUAA-Authentifizierung, `/ws/voice` → kein Auth + WebSocket-Upgrade, `/api/*` → XSUAA, `/*` → statische Dateien aus `app/`. |
 | `app/package.json` | App-Router-Abhängigkeit: `@sap/approuter ^16`. |
 | `mta.yaml` | Deployment-Deskriptor: CAP srv-Modul (1 Instanz, 512 MB), App-Router-Modul (1 Instanz, 128 MB). Ressourcen: XSUAA (xsuaa/application, `xs-security.json`), Destination (destination/lite), AI Core (existing-service `aicore`). Kein HDI, kein HDB-Deployer. |
-| `xs-security.json` | XSUAA-Konfiguration: Scope `VisitDocumenter`, RoleTemplate `VisitDocumenter`, RoleCollection `VisitDocumenter`. Token-Gültigkeit 12 h, Refresh-Token 30 Tage. |
+| `xs-security.json` | XSUAA-Konfiguration: Scope `VisitDocumenter`, RoleTemplate `Z_VisitDocumenter`, RoleCollection `Z_VisitDocumenter`. Token-Gültigkeit 12 h, Refresh-Token 30 Tage. |
 | `test/phase1-foundation.test.js` | 8 Tests, **grün in BAS** |
 | `test/phase2-c4c-read.test.js` | 18 Tests, **grün in BAS** |
 | `test/phase3-draft.test.js` | 19 Tests, noch nicht in BAS nach letztem `git pull` ausgeführt |
@@ -135,7 +135,7 @@ Die Quellen liegen in `docs/c4c-metadata/`, die Konstanten in `srv/lib/c4c-codes
    cf target -s AI_DEV
    cf deploy mta_archives/aiAssistedVisitDocumentation_1.0.0.mtar
    ```
-   Nach dem Deploy im BTP Cockpit: RoleCollection `VisitDocumenter` dem User zuweisen.
+   Nach dem Deploy im BTP Cockpit: RoleCollection `Z_VisitDocumenter` dem User zuweisen.
    Dann testen: App-Router-URL aufrufen → XSUAA-Login → kein Credentials-Formular sichtbar.
 
 **Offene Punkte beim User (nicht blockierend):**

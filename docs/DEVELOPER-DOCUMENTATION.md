@@ -78,7 +78,7 @@ Defined in [ai-tools.js](../srv/lib/ai-tools.js) (`SYSTEM_PROMPT`, written in Ge
 
 ```mermaid
 flowchart LR
-  B["Browser<br/>app/index.html"] <-->|"HTTPS + WebSocket"| R["App Router<br/>app/"]
+  B["Browser<br/>app/webapp/index.html"] <-->|"HTTPS + WebSocket"| R["App Router<br/>app/"]
   R <--> S["CAP application<br/>srv/"]
   X["XSUAA"] -.->|"login, role"| R
   S <-->|"Realtime WebSocket"| AI["SAP AI Core<br/>gpt-realtime + whisper-1"]
@@ -127,8 +127,8 @@ lib/c4c-client.js   The only place that knows C4C entity sets and fields
 | [srv/lib/validation.js](../srv/lib/validation.js) | Time zone and language checks |
 | [srv/lib/tool-result.js](../srv/lib/tool-result.js) | Uniform result format of the tools |
 | [db/schema.cds](../db/schema.cds) | Data model |
-| [app/index.html](../app/index.html) | Complete UI (HTML, CSS, JavaScript) |
-| `app/ui5.bundle.js` | **Generated** and committed. Do not edit by hand. |
+| [app/webapp/index.html](../app/webapp/index.html) | Complete UI (HTML, CSS, JavaScript) |
+| `app/webapp/ui5.bundle.js` | **Generated** and committed. Do not edit by hand. |
 | [app/xs-app.json](../app/xs-app.json) | App Router routes |
 | `ui-src/` | Sources of the UI5 bundle |
 | `test/` | Tests and C4C mock |
@@ -250,7 +250,7 @@ stateDiagram-v2
 ### 5.3 Confirmation and commit
 
 - **Preview hash:** SHA-256 over the frozen draft. Every change increments the version and sets open confirmations to `SUPERSEDED`.
-- **Consent check:** word lists `YES_WORDS` and `NO_WORDS` applied to the utterance that **the AI** passes as `userUtterance`. See the weakness in chapter 9.
+- **Consent check:** the utterance must contain a word from `YES_WORDS` and none from `NO_WORDS`; any refusal word wins. The utterance is the one **the AI** passes as `userUtterance` (see chapter 9).
 - **Order in `runCommit`:** summary PDF, transcript PDF, per task (create, text, link), end time, status.
 - **Error handling:** every step is logged separately (`CommitOperations`). A failure does not stop the following steps. Only text and link are skipped if the task was not created.
 - **Idempotency:** a unique `idempotencyKey` per operation; successful operations are not executed again.
@@ -290,7 +290,7 @@ The database is SQLite **in-memory**: it is empty after every restart. Audio is 
 
 | Endpoint | Protection |
 |---|---|
-| `GET /api/voice-token` | XSUAA or mocked auth, role `VisitDocumenter` |
+| `GET /api/voice-token` | XSUAA or mocked auth, role `VisitDocumenter` (scope) |
 | `/ws/voice?token=<uuid>` | One-time token, valid for 60 s (held in process memory) |
 
 `VoiceAssistantService` is declared with `@protocol: 'none'` and is **not** reachable over HTTP.
@@ -336,7 +336,7 @@ Configured under `cds.voice` in `package.json`:
 
 ## 7. Frontend
 
-Everything is in [app/index.html](../app/index.html). Apart from the component bundle there is no build step.
+Everything is in [app/webapp/index.html](../app/webapp/index.html). Apart from the component bundle there is no build step.
 
 - **Components:** SAP UI5 Web Components (Horizon light and dark), bundled locally, no CDN.
 - **Voice halo:** WebGL fragment shader; states `idle`, `connecting`, `listening`, `thinking`, `speaking`, `error`; CSS fallback without WebGL.
@@ -349,7 +349,7 @@ Rebuild the bundle (only when components, icons or themes change):
 
 ```bash
 npm install
-npm run build:ui   # ui-src/ui5.js -> app/ui5.bundle.js
+npm run build:ui   # ui-src/ui5.js -> app/webapp/ui5.bundle.js
 ```
 
 ---
@@ -371,7 +371,7 @@ npm install --prefix app
 
 For `hybrid`, create the bindings for Destination and AI Core with `cds bind`; they are stored in `.cdsrc-private.json` (**do not commit**). For the visit search to return results, the mock user's e-mail must match an active employee in the tenant (also override it in `.cdsrc-private.json`).
 
-Mock users: `alice` and `carol` with the role, `bob` without it (password equals user name). In SAP BAS the tunnel strips the `Authorization` header; `server.js` has the development fallback `?_dev_user=` for this.
+Mock users: `alice` and `carol` with the role, `bob` without it (password equals user name). In case the SAP BAS tunnel strips the `Authorization` header, `server.js` has the development fallback `?_dev_user=`; it only works with mocked auth outside production.
 
 ### 8.2 Tests
 
@@ -385,8 +385,9 @@ npm test   # node --test --test-concurrency=1
 | `phase2-c4c-read` | Visit and employee search |
 | `phase3-draft` | Draft and preview |
 | `phase4-tasks` | Follow-up tasks |
-| `phase5-commit` | Writing to C4C and idempotency |
+| `phase5-commit` | Writing to C4C, idempotency, refused confirmations |
 | `phase6-bridge` | Tool definitions, prompt, token |
+| `voice-token` | Login and role check of the token endpoint |
 | `pdf-generator` | Multi-page PDFs, special characters |
 | `task-period` | Time zone conversion of due dates |
 
@@ -399,9 +400,11 @@ mbt build
 cf deploy mta_archives/aiAssistedVisitDocumentation_1.0.0.mtar
 ```
 
-Prerequisites: entitlements for XSUAA (`application`) and Destination (`lite`), an existing AI Core instance named `aicore`, destination `SAP_Sales_Cloud_V1`. Afterwards assign the role collection `VisitDocumenter`. Because of the in-memory database and token store, only **one instance** is possible.
+Prerequisites: entitlements for XSUAA (`application`) and Destination (`lite`), an existing AI Core instance named `aicore`, destination `SAP_Sales_Cloud_V1`. The e-mail of the login must match exactly one active employee in C4C. Deploy into the space that contains the AI Core instance. Afterwards assign the role collection `Z_VisitDocumenter`. Because of the in-memory database and token store, only **one instance** is possible.
 
-**Check before the first deployment:** the `?_dev_user=` fallback is only disabled if the runtime is recognised as production (`NODE_ENV=production`). Verify this in the target environment.
+**Before the first build:** run `npm install` and commit the updated `package-lock.json`; `mbt build` uses `npm ci` and fails on an outdated lock file.
+
+`mta.yaml` sets `NODE_ENV=production` for the server and registers the XSUAA redirect URIs for the landscape domain. The App Router requires a login for the UI and `/api`; `/ws/voice` is protected by the one-time token. Not yet verified in a real deployment: startup with in-memory SQLite in production, and the e-mail attribute of the XSUAA user.
 
 ### 8.4 Ways of working
 
@@ -427,29 +430,28 @@ Log categories: `voice`, `voice-bridge`, `c4c`, `server`.
 
 ## 9. Known limitations and open items
 
-Result of a code review on 2026-11-26. These points are **not yet fixed**.
+Result of a code review on 2026-11-26. These points are **not yet fixed**. (The consent check found in the same review has since been corrected.)
 
 ### Priority
 
-1. **The consent check can let refusals through.** `confirmCommit` only rejects if a no-word and **no** yes-word occur. "Nein, bitte nicht speichern" ("No, please do not save") contains "bitte" and "speichern" and therefore counts as consent. The AI normally does not call the tool after a no, but the server-side safeguard fails in this case. Proposal: any no-word leads to rejection; add a test.
-2. **The checked utterance comes from the AI**, not from the stored transcript.
-3. **Status "Completed" is set even after partial failures.** The visit can be completed although attachments or tasks are missing.
-4. **No retry after partial failures.** `PARTIAL_FAILURE` is a final state, so idempotency currently does not help the user.
+1. **The checked utterance comes from the AI**, not from the stored transcript.
+2. **Status "Completed" is set even after partial failures.** The visit can be completed although attachments or tasks are missing.
+3. **No retry after partial failures.** `PARTIAL_FAILURE` is a final state, so idempotency currently does not help the user.
 
 ### Privacy and operations
 
-5. **No deletion.** `open-security-risks.md` (P1) describes deletion after commit or after 7 days. The code does not implement this; expired sessions are only blocked.
-6. **No duplicate check in C4C.** R2 describes such a check as mitigation; it does not exist. `SKIPPED_EXISTING` is never set.
-7. R1: the destination allows `HTML5.DynamicDestination`.
-8. R2: in-memory SQLite, one instance, audit log not durable.
-9. No privacy notice and no consent step; approval is pending.
+4. **No deletion.** `open-security-risks.md` (P1) describes deletion after commit or after 7 days. The code does not implement this; expired sessions are only blocked.
+5. **No duplicate check in C4C.** R2 describes such a check as mitigation; it does not exist. `SKIPPED_EXISTING` is never set.
+6. R1: the destination allows `HTML5.DynamicDestination`.
+7. R2: in-memory SQLite, one instance, audit log not durable.
+8. No privacy notice and no consent step; approval is pending.
 
 ### Functional
 
-10. **Visit search is limited:** at most 50 open visits per query, and the day filter is applied afterwards. With many old open visits, today's visit can be missed.
-11. The employee search returns at most 20 hits and only exact names.
-12. The end time is not checked against the start time.
-13. Pause and draft do not survive a page reload.
+9. **Visit search is limited:** at most 50 open visits per query, and the day filter is applied afterwards. With many old open visits, today's visit can be missed.
+10. The employee search returns at most 20 hits and only exact names.
+11. The end time is not checked against the start time.
+12. Pause and draft do not survive a page reload.
 
 ---
 
@@ -489,13 +491,12 @@ A separate phase 8 cannot be identified from the history or the documents.
 
 | No. | Step | Relates to (chapter 9) | Done when |
 |---|---|---|---|
-| 1 | Fix the consent check | 1, 2 | Refusing sentences lead to `DENIED` in tests |
-| 2 | Define handling of partial failures (status, retry) | 3, 4 | Decision made and tested |
-| 3 | Run tests in BAS and verify conversations end to end | – | Tests green, test log available |
-| 4 | Deletion concept and privacy approval | 5, 9 | Approval received, deletion tested |
-| 5 | Persistent database, dedicated destination | 7, 8 | Configuration switched |
-| 6 | Make the visit search reliable | 10 | Today's visit is found even with a large backlog |
-| 7 | Deploy to BTP, verify the dev fallback | 8.3 | App runs with XSUAA, fallback not usable |
+| 1 | Define handling of partial failures (status, retry) | 2, 3 | Decision made and tested |
+| 2 | Run tests in BAS and verify conversations end to end | – | Tests green, test log available |
+| 3 | Deletion concept and privacy approval | 4, 8 | Approval received, deletion tested |
+| 4 | Persistent database, dedicated destination | 6, 7 | Configuration switched |
+| 5 | Make the visit search reliable | 9 | Today's visit is found even with a large backlog |
+| 6 | Deploy to BTP, verify login, voice connection and dev fallback | 8.3 | App runs with XSUAA, fallback not usable |
 
 ### Open functional assumptions
 

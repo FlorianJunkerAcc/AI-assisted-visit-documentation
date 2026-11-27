@@ -16,8 +16,11 @@ const FINAL_STATES = ['COMPLETED', 'PARTIAL_FAILURE', 'FAILED', 'CANCELLED', 'NO
 // YES / NO keywords for utterance check in confirmCommit.
 const YES_WORDS = ['ja', 'jawohl', 'stimmt', 'korrekt', 'bitte', 'speichern', 'genau', 'ja bitte',
   'yes', 'correct', 'right', 'please', 'save', 'confirm', 'go ahead', 'sure', 'ok', 'okay']
-const NO_WORDS = ['nein', 'nicht', 'stop', 'abbruch', 'abbrechen', 'korrigieren', 'ändern', 'falsch',
-  'no', 'cancel', 'wrong', 'undo', 'change', 'halt']
+// Any of these rejects the confirmation, even if a yes-word is present too
+// ("Nein, bitte nicht speichern"). "don t" is "don't" after punctuation removal.
+const NO_WORDS = ['nein', 'nee', 'nö', 'nicht', 'kein', 'keine', 'stop', 'stopp', 'warte', 'abbruch',
+  'abbrechen', 'korrigieren', 'ändern', 'falsch',
+  'no', 'not', 'don t', 'dont', 'wait', 'cancel', 'wrong', 'undo', 'change', 'halt']
 
 const isDueTime = (v) => /^([01]?\d|2[0-3]):[0-5]\d$/.test(String(v))
 
@@ -558,7 +561,7 @@ export default class VoiceAssistantService extends cds.ApplicationService {
       if (!utterance) return fail('NO_UTTERANCE', 'userUtterance must contain the transcribed user confirmation.')
       const hasYes = matchesWord(utterance, YES_WORDS)
       const hasNo = matchesWord(utterance, NO_WORDS)
-      if (hasNo && !hasYes) {
+      if (hasNo) {
         return fail('DENIED', 'The user did not confirm. Ask if they want to change something, then call prepareCommitPreview again.')
       }
       if (!hasYes) {

@@ -1,16 +1,14 @@
 {
+  "welcomeFile": "/index.html",
   "authenticationMethod": "route",
+  "websockets": {
+    "enabled": true
+  },
   "routes": [
-    {
-      "source": "^/api/voice-token$",
-      "destination": "srv-api",
-      "authenticationType": "xsuaa"
-    },
     {
       "source": "^/ws/voice",
       "destination": "srv-api",
-      "authenticationType": "none",
-      "websocketUpgrade": true
+      "authenticationType": "none"
     },
     {
       "source": "^/api/(.*)$",
@@ -19,8 +17,8 @@
     },
     {
       "source": "^/(.*)$",
-      "localDir": ".",
-      "authenticationType": "none"
+      "localDir": "webapp",
+      "authenticationType": "xsuaa"
     }
   ]
 }

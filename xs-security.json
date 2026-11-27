@@ -9,7 +9,7 @@
   ],
   "role-templates": [
     {
-      "name": "VisitDocumenter",
+      "name": "Z_VisitDocumenter",
       "description": "Users who may document visits via voice assistant",
       "scope-references": [
         "$XSAPPNAME.VisitDocumenter"
@@ -18,10 +18,10 @@
   ],
   "role-collections": [
     {
-      "name": "VisitDocumenter",
+      "name": "Z_VisitDocumenter",
       "description": "Users who may document visits via voice assistant",
       "role-template-references": [
-        "$XSAPPNAME.VisitDocumenter"
+        "$XSAPPNAME.Z_VisitDocumenter"
       ]
     }
   ],

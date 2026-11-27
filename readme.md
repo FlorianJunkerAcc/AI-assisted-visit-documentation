@@ -43,7 +43,7 @@ npm test
 
 ## UI bundle
 
-`app/ui5.bundle.js` is generated and committed. Rebuild it after changes in `ui-src/`:
+`app/webapp/ui5.bundle.js` is generated and committed. Rebuild it after changes in `ui-src/`:
 
 ```bash
 npm run build:ui
@@ -56,13 +56,13 @@ mbt build
 cf deploy mta_archives/aiAssistedVisitDocumentation_1.0.0.mtar
 ```
 
-Read the [deployment notes](docs/DEVELOPER-DOCUMENTATION.md#83-deployment-not-yet-performed) first.
+Run `npm install` and commit `package-lock.json` first, then read the [deployment notes](docs/DEVELOPER-DOCUMENTATION.md#83-deployment-not-yet-performed). Assign the role collection `Z_VisitDocumenter` to users.
 
 ## Project layout
 
 | Folder | Content |
 |---|---|
-| `app/` | Web UI and App Router configuration |
+| `app/` | App Router configuration; web UI in `app/webapp/` |
 | `db/` | Data model |
 | `srv/` | Voice bridge, business logic, C4C client, PDF generation |
 | `test/` | Tests and C4C mock |

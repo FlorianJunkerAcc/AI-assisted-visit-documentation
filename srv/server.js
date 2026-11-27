@@ -2,8 +2,8 @@
 // CDS auto-loads this file and applies both hooks before starting to serve.
 //
 // 1. /api/voice-token  – authenticated browser requests a one-time WS token (GET).
-//    Registered in 'served' so CAP's auth middleware (mocked or XSUAA) has already
-//    run and req.user is populated before the handler fires.
+//    This is a plain Express route, not a CDS service, so CAP's middlewares (including
+//    authentication) have to be added to it explicitly.
 // 2. /ws/voice         – WebSocket bridge registered on the HTTP server via the
 //                        'listening' event (fires when the port is bound).
 import cds from '@sap/cds'
@@ -11,17 +11,17 @@ import { createVoiceToken, registerVoiceBridge } from './voice-bridge.js'
 
 const LOG = cds.log('server')
 
-// Token endpoint – runs AFTER CAP's auth middleware.
+// Token endpoint – cds.middlewares.before runs authentication first.
 // In development (mocked auth) req.user is populated from Basic Auth headers.
 // In production (XSUAA) req.user is populated from the JWT forwarded by the App Router.
 //
-// Dev-only fallback: BAS tunnels strip Authorization headers, so mocked auth never fires.
-// When NODE_ENV !== 'production' and req.user is absent, ?_dev_user=alice is accepted as
-// a stand-in. This path is unreachable in production because auth.kind=xsuaa is active.
+// Dev-only fallback: BAS tunnels may strip Authorization headers. Only with mocked auth and
+// outside production, ?_dev_user=alice is then accepted as a stand-in.
 cds.on('served', () => {
-  cds.app.get('/api/voice-token', (req, res) => {
+  cds.app.get('/api/voice-token', cds.middlewares.before, (req, res) => {
     let user = req.user
-    if (!user?.id && cds.env.profile !== 'production' && process.env.NODE_ENV !== 'production') {
+    const devFallback = process.env.NODE_ENV !== 'production' && cds.env.requires?.auth?.kind === 'mocked'
+    if (!user?.is('authenticated-user') && devFallback) {
       const devUser = req.query._dev_user
       if (devUser) {
         const cfg = cds.env.requires?.auth?.users?.[devUser]
@@ -30,7 +30,7 @@ cds.on('served', () => {
         }
       }
     }
-    if (!user?.id) return res.status(401).json({ error: 'Unauthorized' })
+    if (!user?.is('authenticated-user')) return res.status(401).json({ error: 'Unauthorized' })
     if (!user.is('VisitDocumenter')) return res.status(403).json({ error: 'Forbidden' })
     res.json({ token: createVoiceToken(user) })
   })
